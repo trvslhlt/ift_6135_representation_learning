@@ -26,11 +26,9 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Data files (large datasets)
-data/*.csv
-data/*.zip
-data/*.parquet
-!data/sample_*.csv
+# Data files
+data/*
+!data/.gitkeep
 
 # Secrets
 .env
