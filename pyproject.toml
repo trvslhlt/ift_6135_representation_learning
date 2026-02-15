@@ -26,6 +26,10 @@ dependencies = [
     # Deep Learning
     "torch>=2.0.0",
     "torchvision>=0.15.0",
+    "monai>=1.3.0",
+
+    # Tests
+    "pytest>=7.0.0",
 ]
 
 [build-system]
