@@ -1,3 +1,4 @@
+# uv run python -m pytest assignments/assignment_1/test.py -v -k "TestLinear"
 import torch
 import unittest
 from mlp import Linear, MLP

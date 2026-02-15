@@ -37,6 +37,13 @@ class Linear(nn.Module):
 
 
 class MLP(torch.nn.Module):
+    input_size: int
+    hidden_sizes: List[int]
+    num_classes: int
+    activation: str
+    hidden_layers: nn.ModuleList
+    output_layer: nn.Module
+
     def __init__(self, input_size: int, hidden_sizes: List[int], num_classes: int, activation: str = "relu"):
         super(MLP, self).__init__() 
         self.input_size = input_size
@@ -64,16 +71,30 @@ class MLP(torch.nn.Module):
             hidden_layers: nn.ModuleList. Within the list, each item has type nn.Module
             output_layer: nn.Module
         """
-        raise NotImplementedError
+        sizes = [input_size] + hidden_sizes
+        hidden_layers = nn.ModuleList([
+            Linear(sizes[i], sizes[i + 1]) for i in range(len(hidden_sizes))
+        ])
+        output_layer = Linear(hidden_sizes[-1], num_classes)
+        return hidden_layers, output_layer
     
     def activation_fn(self, activation, inputs: torch.Tensor) -> torch.Tensor:
         """ process the inputs through different non-linearity function according to activation name """
-        raise NotImplementedError
+        if activation == 'relu':
+            return torch.relu(inputs)
+        elif activation == 'sigmoid':
+            return torch.sigmoid(inputs)
+        elif activation == 'tanh':
+            return torch.tanh(inputs)
+        else:
+            raise ValueError(f"Invalid activation: '{activation}'")
         
-    def _initialize_linear_layer(self, module: nn.Linear) -> None:
+    def _initialize_linear_layer(self, module: nn.Module) -> None:
         """ For bias set to zeros. For weights set to glorot normal """
-        raise NotImplementedError
-        
+        assert isinstance(module, Linear)
+        nn.init.zeros_(module.bias)
+        nn.init.xavier_normal_(module.weight)
+
     def forward(self, images: torch.Tensor) -> torch.Tensor:
         """ Forward images and compute logits.
         1. The images are first fattened to vectors. 
@@ -83,4 +104,8 @@ class MLP(torch.nn.Module):
         :param images: [batch, channels, width, height]
         :return logits: [batch, num_classes]
         """
-        raise NotImplementedError
+        images_f = images.flatten(1) # keep the batch dimension, flatten all others
+        hidden_act = images_f
+        for layer in self.hidden_layers:
+            hidden_act = self.activation_fn(self.activation, layer(hidden_act))
+        return self.output_layer(hidden_act)
