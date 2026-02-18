@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
  
 
-def discrete_2d_convolution(image, kernel):
+def discrete_2d_convolution(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
     # 1. Convert to float to avoid uint8 values
     image = image.astype(np.float64)
     kernel = np.array(kernel, dtype=np.float64)
@@ -18,11 +18,25 @@ def discrete_2d_convolution(image, kernel):
     # Because we want the output image to have the same size as the input image, we need to pad the input image
     pad_height = kernel_height // 2
     pad_width = kernel_width // 2
-    # TODO: Pad the image with zeros on all sides
+
+    # Pad the image with zeros on all sides
+    pad_dims = ((pad_height, pad_height), (pad_width, pad_width)) # (before_dim1, after_dim1), ...
+    padded_image = np.pad(image, pad_dims, mode='constant', constant_values=0)
 
     # TODO: perform the convolution operation
+    convolved_image = np.zeros((image_height, image_width))
+    for i in range(image_height):
+        for j in range(image_width):
+            src_data = padded_image[i:i + kernel_height, j:j + kernel_width]
+            convolved_image[i, j] = np.sum(src_data * kernel)
+    
+    # Alternative approach
+    # - compute all convolution windows at one time instead of iterating
+    # - uses much more memory and fails locally on a large image
+    # windows = np.lib.stride_tricks.sliding_window_view(padded_image, (kernel_height, kernel_width))
+    # convolved_image = np.sum(windows * kernel, axis=(2, 3))
 
-    raise NotImplementedError
+    return convolved_image
     
 
 class DiceLoss(nn.Module):
