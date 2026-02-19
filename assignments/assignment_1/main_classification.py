@@ -132,14 +132,6 @@ def evaluate(epoch, model, dataloader, loss_fn, accuracy_fn, device, args, mode=
 
 
 def main():
-    '''
-    main_classification.py \
-        --model mobilenet \
-        --logdir logs/mobilenet \
-        
-    '''
-    
-
     # Parse the arguments
     args = parse_args()
 

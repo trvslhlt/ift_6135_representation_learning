@@ -117,5 +117,5 @@ class MobileNet(nn.Module):
         x = self.avgpool(x)
         x = x.flatten(1) # don't flatten dim 0 (batch)
         x = self.fc(x)
-        x = self.softmax(x)
+        # x = self.softmax(x) # disable for use with CrossEntropyLoss
         return x
