@@ -225,8 +225,11 @@ def main():
                     "valid_losses": valid_losses,
                     "train_accs": train_accs,
                     "valid_accs": valid_accs,
+                    "train_times": train_times,
+                    "valid_times": valid_times,
                     "test_loss": test_loss,
-                    "test_acc": test_acc
+                    "test_acc": test_acc,
+                    "test_time": test_time,
                 },
                 indent=4,
             ))
