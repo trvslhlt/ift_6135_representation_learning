@@ -30,6 +30,8 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision import tv_tensors
 from tqdm import tqdm
 
+import segmentation_models_pytorch as smp
+
 from unet import UNet
 from utils import DiceCELoss, DiceLoss, get_transform
 
@@ -55,6 +57,7 @@ def parse_args():
     parser.add_argument('--print_every', type=int, default=80, help='Number of minibatches after which we print the loss (default: %(default)s).')
     parser.add_argument('--no_skip_connections', action='store_true', help='disable skip connections in UNet')
     parser.add_argument('--augmentation', type=str, default=None, help='Data augmentation type: orientation, value, distortion, crop (default: none)')
+    parser.add_argument('--model', type=str, default='unet', choices=['unet', 'pretrained'], help='Model to use: unet (from scratch) or pretrained (smp ResNet18+ImageNet) (default: %(default)s)')
     return parser.parse_args()
 
 
@@ -68,6 +71,7 @@ class GetDataset(Dataset):
     def __getitem__(self, index):
         """ Reading image """
         image = cv2.imread(self.image_paths[index], cv2.IMREAD_COLOR)
+        assert image is not None, f"Failed to read image: {self.image_paths[index]}"
         image = image/255.0
         image = np.transpose(image, (2, 0, 1))
         image = image.astype(np.float32)
@@ -76,6 +80,7 @@ class GetDataset(Dataset):
 
         """ Reading mask """
         mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
+        assert mask is not None, f"Failed to read mask: {self.mask_paths[index]}"
         mask = mask/255.0
         mask = mask.astype(np.float32)
         mask = torch.from_numpy(mask).unsqueeze(0)
@@ -194,11 +199,16 @@ def main():
     val_set = GetDataset(valid_x, valid_y)
     
     # Load model
-    print('Build UNET model...')
-    skip_connections = not args.no_skip_connections
-    model = UNet(in_channels=3, num_classes=1, skip_connections=skip_connections)
+    if args.model == 'pretrained':
+        print('Build pretrained smp.Unet model (ResNet18 + ImageNet)...')
+        model = smp.Unet(encoder_name="resnet18", encoder_weights="imagenet", in_channels=3, classes=1)
+        skip_connections = True
+    else:
+        print('Build UNET model...')
+        skip_connections = not args.no_skip_connections
+        model = UNet(in_channels=3, num_classes=1, skip_connections=skip_connections)
     model.to(device)
-    print(f"Initialized UNET model with {sum(p.numel() for p in model.parameters())} "
+    print(f"Initialized model with {sum(p.numel() for p in model.parameters())} "
           f"total parameters, of which {sum(p.numel() for p in model.parameters() if p.requires_grad)} are learnable.")
     print("Model architecture:\n", model)
     print("\n")
@@ -238,6 +248,7 @@ def main():
         print(f'Writing training logs to {args.logdir}...')
         metadata = {
             "cli_args": {
+                "model": args.model,
                 "epochs": args.epochs,
                 "batch_size": args.batch_size,
                 "lr": args.lr,
@@ -263,7 +274,8 @@ def main():
         }
         os.makedirs(args.logdir, exist_ok=True)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        with open(os.path.join(args.logdir, f'unet_results_{timestamp}.json'), 'w') as f:
+        prefix = 'pretrained_unet' if args.model == 'pretrained' else 'unet'
+        with open(os.path.join(args.logdir, f'{prefix}_results_{timestamp}.json'), 'w') as f:
             f.write(json.dumps(
                 {
                     "metadata": metadata,
