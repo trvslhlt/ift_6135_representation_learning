@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
+from torchvision.transforms import v2
  
 
 def discrete_2d_convolution(image: np.ndarray, kernel: np.ndarray) -> np.ndarray:
@@ -83,3 +84,31 @@ class DiceCELoss(nn.Module):
 
     def forward(self, logits: torch.Tensor, targets: torch.Tensor):
         return 0.5 * (self.diceLoss(logits, targets) + self.ceLoss(logits, targets))
+
+
+# https://docs.pytorch.org/vision/main/transforms.html#v2-api-reference-recommended
+def get_transform(type: str | None = None) -> v2.Transform:
+    transforms = []
+    if type == 'orientation':
+        transforms = [
+            v2.RandomHorizontalFlip(p=0.5),
+            v2.RandomVerticalFlip(p=0.5),
+            v2.RandomRotation(degrees=(-180, 180)),
+        ]
+    elif type == 'value':
+        transforms = [
+            v2.ColorJitter(brightness=0.3, contrast=0.3),
+        ]
+    elif type == 'distortion':
+        transforms = [
+            v2.ElasticTransform(alpha=100.0, sigma=5.0),
+            v2.GaussianBlur(kernel_size=9, sigma=3.0),
+        ]
+    elif type == 'crop':
+        transforms = [
+            v2.RandomResizedCrop(size=(512, 512), scale=(0.5, 1.0)),
+        ]
+    elif type is not None:
+        print(f'transform type "{type}" not supported. none applied')
+    
+    return v2.Compose(transforms)

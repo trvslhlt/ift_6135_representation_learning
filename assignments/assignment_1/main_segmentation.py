@@ -27,10 +27,11 @@ import torch
 import torch.nn as nn
 from torch import optim
 from torch.utils.data import DataLoader, Dataset
+from torchvision import tv_tensors
 from tqdm import tqdm
 
 from unet import UNet
-from utils import DiceCELoss, DiceLoss
+from utils import DiceCELoss, DiceLoss, get_transform
 
 
 # seed experiment
@@ -53,14 +54,16 @@ def parse_args():
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (default: %(default)s).')
     parser.add_argument('--print_every', type=int, default=80, help='Number of minibatches after which we print the loss (default: %(default)s).')
     parser.add_argument('--no_skip_connections', action='store_true', help='disable skip connections in UNet')
+    parser.add_argument('--augmentation', type=str, default=None, help='Data augmentation type: orientation, value, distortion, crop (default: none)')
     return parser.parse_args()
 
 
 class GetDataset(Dataset):
-    def __init__(self, image_paths: list[str], mask_paths: list[str]):
+    def __init__(self, image_paths: list[str], mask_paths: list[str], transform=None):
         self.image_paths = image_paths
         self.mask_paths = mask_paths
         self.n_samples = len(image_paths)
+        self.transform = transform
 
     def __getitem__(self, index):
         """ Reading image """
@@ -69,13 +72,17 @@ class GetDataset(Dataset):
         image = np.transpose(image, (2, 0, 1))
         image = image.astype(np.float32)
         image = torch.from_numpy(image)
+        image = tv_tensors.Image(image) # needed for join transformation with mask
 
         """ Reading mask """
         mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
         mask = mask/255.0
-        mask = np.expand_dims(mask, axis=0)
         mask = mask.astype(np.float32)
-        mask = torch.from_numpy(mask)
+        mask = torch.from_numpy(mask).unsqueeze(0)
+        mask = tv_tensors.Mask(mask)
+
+        if self.transform is not None:
+            image, mask = self.transform(image, mask)
 
         return image, mask
 
@@ -84,8 +91,6 @@ class GetDataset(Dataset):
 
 
 def dice_score(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-    # Compute the dice score using the DiceLoss class
-    # dice_score = 1 - dice_loss
     dice_loss = DiceLoss()
     return 1 - dice_loss(preds, targets)
 
@@ -181,8 +186,11 @@ def main():
     valid_y = sorted(glob(f"{dataset_path}/test/mask/*"))
     print(f"Dataset Size:\nTrain: {len(train_x)} - Valid: {len(valid_x)}\n")
 
+    # Data augmentation (applied jointly to image and mask)
+    train_transform = get_transform(args.augmentation)
+
     # Load the datasets with the custom Dataset class
-    train_set = GetDataset(train_x, train_y)
+    train_set = GetDataset(train_x, train_y, transform=train_transform)
     val_set = GetDataset(valid_x, valid_y)
     
     # Load model
@@ -235,6 +243,7 @@ def main():
                 "lr": args.lr,
                 "weight_decay": args.weight_decay,
                 "skip_connections": skip_connections,
+                "augmentation": args.augmentation,
             },
             "env": {
                 "device": device,
