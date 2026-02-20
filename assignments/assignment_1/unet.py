@@ -43,8 +43,9 @@ class DecoderBlock(nn.Module):
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels: int, num_classes: int):
+    def __init__(self, in_channels: int, num_classes: int, skip_connections: bool):
         super().__init__()
+        print(f'!!!!!!!! implement `skip_connections` ({skip_connections})')
         self.encoder_block1 = double_conv_block(in_channels, 64)
         self.encoder_block2 = double_conv_block(64, 128)
         self.encoder_block3 = double_conv_block(128, 256)

@@ -43,7 +43,7 @@ class DiceLoss(nn.Module):
     def __init__(self):
         super(DiceLoss, self).__init__()
 
-    def forward(self, logits: torch.Tensor, targets: torch.Tensor, smooth=1):
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor, smooth=1) -> torch.Tensor:
         """
         Compute the Dice Loss between the logits and the targets.
         In this implementation, we use smoothing to avoid division by zero: it is added 
@@ -81,5 +81,5 @@ class DiceCELoss(nn.Module):
         # instead of the cross entropy loss since we have a binary segmentation task.
         self.ceLoss = BinaryCELoss()
 
-    def forward(self, logits, targets):
-        raise NotImplementedError
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor):
+        return 0.5 * (self.diceLoss(logits, targets) + self.ceLoss(logits, targets))

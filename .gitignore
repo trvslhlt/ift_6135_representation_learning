@@ -31,6 +31,9 @@ data/*
 **/data/*
 !data/.gitkeep
 
+# Logs
+**/logs/*
+
 # Secrets
 .env
 *.key

@@ -15,8 +15,10 @@ Author:
     Pierre-Louis Benveniste
 """
 import argparse
+import json
 import torch
 from torch import optim
+import torch.nn as nn
 from tqdm import tqdm
 from torch.utils.data import DataLoader
 import time
@@ -37,34 +39,6 @@ torch.cuda.manual_seed(42)
 torch.backends.cudnn.benchmark = True
 
 
-class GetDataset(Dataset):
-    def __init__(self, images_path, masks_path):
-
-        self.images_path = images_path
-        self.masks_path = masks_path
-        self.n_samples = len(images_path)
-
-    def __getitem__(self, index):
-        """ Reading image """
-        image = cv2.imread(self.images_path[index], cv2.IMREAD_COLOR)
-        image = image/255.0
-        image = np.transpose(image, (2, 0, 1))
-        image = image.astype(np.float32)
-        image = torch.from_numpy(image)
-
-        """ Reading mask """
-        mask = cv2.imread(self.masks_path[index], cv2.IMREAD_GRAYSCALE)
-        mask = mask/255.0
-        mask = np.expand_dims(mask, axis=0)
-        mask = mask.astype(np.float32)
-        mask = torch.from_numpy(mask)
-
-        return image, mask
-
-    def __len__(self):
-        return self.n_samples
-
-
 def parse_args():
     """
     This function parses the command line arguments.
@@ -77,15 +51,45 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate (default: %(default)s).')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (default: %(default)s).')
     parser.add_argument('--print_every', type=int, default=80, help='Number of minibatches after which we print the loss (default: %(default)s).')
+    parser.add_argument('--skip_connections', type=bool, default=True, help='build the UNet with skip connections')
     return parser.parse_args()
 
 
-def dice_score(preds, targets):
+class GetDataset(Dataset):
+    def __init__(self, image_paths: list[str], mask_paths: list[str]):
+        self.image_paths = image_paths
+        self.mask_paths = mask_paths
+        self.n_samples = len(image_paths)
+
+    def __getitem__(self, index):
+        """ Reading image """
+        image = cv2.imread(self.image_paths[index], cv2.IMREAD_COLOR)
+        image = image/255.0
+        image = np.transpose(image, (2, 0, 1))
+        image = image.astype(np.float32)
+        image = torch.from_numpy(image)
+
+        """ Reading mask """
+        mask = cv2.imread(self.mask_paths[index], cv2.IMREAD_GRAYSCALE)
+        mask = mask/255.0
+        mask = np.expand_dims(mask, axis=0)
+        mask = mask.astype(np.float32)
+        mask = torch.from_numpy(mask)
+
+        return image, mask
+
+    def __len__(self):
+        return self.n_samples
+
+
+def dice_score(preds: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     # Compute the dice score using the DiceLoss class
-    raise NotImplementedError
+    # dice_score = 1 - dice_loss
+    dice_loss = DiceLoss()
+    return 1 - dice_loss(preds, targets)
 
 
-def train(epoch, model, dataloader, optimizer, loss_fn, accuracy_fn, device, args):
+def train(epoch: int, model: nn.Module, dataloader, optimizer, loss_fn, accuracy_fn, device, args):
     model.train()
     total_iters = 0
     epoch_accuracy=0
@@ -170,18 +174,25 @@ def main():
 
     # We load the dataset
     dataset_path = args.dataset
-    train_x = sorted(glob(f"{dataset_path}/train/image/*"))
-    train_y = sorted(glob(f"{dataset_path}/train/mask/*"))
-    valid_x = sorted(glob(f"{dataset_path}/test/image/*"))
-    valid_y = sorted(glob(f"{dataset_path}/test/mask/*"))
+    ###!!! testing
+    # uv run python main_segmentation.py \
+    #   --dataset data/q4_data \
+    #   --logdir logs \
+    #   --epochs 1
+    sample_size = 2
+    train_x = sorted(glob(f"{dataset_path}/train/image/*"))[:sample_size]
+    train_y = sorted(glob(f"{dataset_path}/train/mask/*"))[:sample_size]
+    valid_x = sorted(glob(f"{dataset_path}/test/image/*"))[:sample_size]
+    valid_y = sorted(glob(f"{dataset_path}/test/mask/*"))[:sample_size]
     print(f"Dataset Size:\nTrain: {len(train_x)} - Valid: {len(valid_x)}\n")
+
     # Load the datasets with the custom Dataset class
     train_set = GetDataset(train_x, train_y)
     val_set = GetDataset(valid_x, valid_y)
     
     # Load model
-    print(f'Build UNET model...')
-    model = UNet(input_shape=____, num_classes=____)
+    print('Build UNET model...')
+    model = UNet(in_channels=3, num_classes=1, skip_connections=args.skip_connections)
     model.to(device)
     print(f"Initialized UNET model with {sum(p.numel() for p in model.parameters())} "
           f"total parameters, of which {sum(p.numel() for p in model.parameters() if p.requires_grad)} are learnable.")
@@ -205,7 +216,7 @@ def main():
     valid_dataloader = DataLoader(val_set, batch_size=args.batch_size, shuffle=False, drop_last=False, num_workers=4)
 
     # Train and evaluate the model
-    print(f'Training UNET model...')
+    print('Training UNET model...')
     for epoch in tqdm(range(args.epochs)):
         tqdm.write(f"====== Epoch {epoch} ======>")
 
@@ -220,6 +231,22 @@ def main():
         valid_losses.append(loss)
         valid_accs.append(acc)
         valid_times.append(wall_time)
+
+    if args.logdir is not None:
+        print(f'Writing training logs to {args.logdir}...')
+        os.makedirs(args.logdir, exist_ok=True)
+        with open(os.path.join(args.logdir, 'results.json'), 'w') as f:
+            f.write(json.dumps(
+                {
+                    "train_losses": train_losses,
+                    "valid_losses": valid_losses,
+                    "train_accs": train_accs,
+                    "valid_accs": valid_accs,
+                    "train_times": train_times,
+                    "valid_times": valid_times,
+                },
+                indent=4,
+            ))
 
 
 if __name__ == "__main__":
