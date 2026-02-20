@@ -23,7 +23,7 @@ class DecoderBlock(nn.Module):
     Decoder block of UNet. It consists of an upconvolution layer followed by a double conv block.
     Use the double_conv_block defined above.
     """
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(self, in_channels: int, out_channels: int, skip_connections = True):
         super().__init__()
         # The stride doesn't mean "move the kernel 2px over the input." 
         # It means space the input pixels 2 apart in the output grid, then convolve.
@@ -32,7 +32,9 @@ class DecoderBlock(nn.Module):
         # c d           0 0 0
         #               c 0 d
         self.upconv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
-        self.conv = double_conv_block(in_channels, out_channels)
+        # with skip_connections:    conv expects in_channels (upconv out + skip)
+        # without:                  conv expects out_channels (upconv out only)
+        self.conv = double_conv_block(in_channels if skip_connections else out_channels, out_channels)
 
     def forward(self, x: torch.Tensor, skip: torch.Tensor | None) -> torch.Tensor:
         x = self.upconv(x)
@@ -56,10 +58,10 @@ class UNet(nn.Module):
         self.encoder_block4 = double_conv_block(256, 512)
         self.encoder_block5 = double_conv_block(512, 1024)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.decoder_block1 = DecoderBlock(1024, 512)
-        self.decoder_block2 = DecoderBlock(512, 256)
-        self.decoder_block3 = DecoderBlock(256, 128)
-        self.decoder_block4 = DecoderBlock(128, 64)
+        self.decoder_block1 = DecoderBlock(1024, 512, skip_connections=skip_connections)
+        self.decoder_block2 = DecoderBlock(512, 256, skip_connections=skip_connections)
+        self.decoder_block3 = DecoderBlock(256, 128, skip_connections=skip_connections)
+        self.decoder_block4 = DecoderBlock(128, 64, skip_connections=skip_connections)
         self.outconv = nn.Conv2d(
             64,
             num_classes,

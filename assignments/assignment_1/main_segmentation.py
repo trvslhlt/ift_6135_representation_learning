@@ -22,7 +22,6 @@ from datetime import datetime
 from glob import glob
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -99,7 +98,7 @@ def train(epoch: int, model: nn.Module, dataloader, optimizer, loss_fn, accuracy
     start_time = time.time()
     for idx, (X,y) in enumerate(dataloader):
         # Format the data
-        y = y.squeeze().long()
+        y = y.squeeze()
         X, y = X.to(device), y.to(device)
 
         # Forward pass
@@ -136,7 +135,7 @@ def evaluate(epoch, model, dataloader, loss_fn, accuracy_fn, device, args, mode=
     with torch.no_grad():
         for idx, (X,y) in enumerate(dataloader):
             # Format the data
-            y = y.squeeze().long()
+            y = y.squeeze()
             X, y = X.to(device), y.to(device)
 
             # Forward pass
@@ -197,7 +196,7 @@ def main():
     print("\n")
     
     # Optimizer, loss function, accuracy function
-    optimizer = optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     loss_fn = DiceCELoss()
     accuracy_fn = dice_score
     
@@ -255,7 +254,7 @@ def main():
         }
         os.makedirs(args.logdir, exist_ok=True)
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        with open(os.path.join(args.logdir, f'results_{timestamp}.json'), 'w') as f:
+        with open(os.path.join(args.logdir, f'unet_results_{timestamp}.json'), 'w') as f:
             f.write(json.dumps(
                 {
                     "metadata": metadata,
