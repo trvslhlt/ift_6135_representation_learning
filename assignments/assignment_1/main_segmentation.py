@@ -16,20 +16,22 @@ Author:
 """
 import argparse
 import json
-import torch
-from torch import optim
-import torch.nn as nn
-from tqdm import tqdm
-from torch.utils.data import DataLoader
-import time
 import os
+import time
+from datetime import datetime
+from glob import glob
+
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
+import torch.nn as nn
+from torch import optim
+from torch.utils.data import DataLoader, Dataset
+from tqdm import tqdm
+
 from unet import UNet
 from utils import DiceCELoss, DiceLoss
-from glob import glob
-import cv2
-from torch.utils.data import Dataset
 
 
 # seed experiment
@@ -51,7 +53,7 @@ def parse_args():
     parser.add_argument('--lr', type=float, default=1e-4, help='Learning rate (default: %(default)s).')
     parser.add_argument('--weight_decay', type=float, default=5e-4, help='Weight decay (default: %(default)s).')
     parser.add_argument('--print_every', type=int, default=80, help='Number of minibatches after which we print the loss (default: %(default)s).')
-    parser.add_argument('--skip_connections', type=bool, default=True, help='build the UNet with skip connections')
+    parser.add_argument('--no_skip_connections', action='store_true', help='disable skip connections in UNet')
     return parser.parse_args()
 
 
@@ -174,16 +176,10 @@ def main():
 
     # We load the dataset
     dataset_path = args.dataset
-    ###!!! testing
-    # uv run python main_segmentation.py \
-    #   --dataset data/q4_data \
-    #   --logdir logs \
-    #   --epochs 1
-    sample_size = 2
-    train_x = sorted(glob(f"{dataset_path}/train/image/*"))[:sample_size]
-    train_y = sorted(glob(f"{dataset_path}/train/mask/*"))[:sample_size]
-    valid_x = sorted(glob(f"{dataset_path}/test/image/*"))[:sample_size]
-    valid_y = sorted(glob(f"{dataset_path}/test/mask/*"))[:sample_size]
+    train_x = sorted(glob(f"{dataset_path}/train/image/*"))
+    train_y = sorted(glob(f"{dataset_path}/train/mask/*"))
+    valid_x = sorted(glob(f"{dataset_path}/test/image/*"))
+    valid_y = sorted(glob(f"{dataset_path}/test/mask/*"))
     print(f"Dataset Size:\nTrain: {len(train_x)} - Valid: {len(valid_x)}\n")
 
     # Load the datasets with the custom Dataset class
@@ -192,18 +188,17 @@ def main():
     
     # Load model
     print('Build UNET model...')
-    model = UNet(in_channels=3, num_classes=1, skip_connections=args.skip_connections)
+    skip_connections = not args.no_skip_connections
+    model = UNet(in_channels=3, num_classes=1, skip_connections=skip_connections)
     model.to(device)
     print(f"Initialized UNET model with {sum(p.numel() for p in model.parameters())} "
           f"total parameters, of which {sum(p.numel() for p in model.parameters() if p.requires_grad)} are learnable.")
     print("Model architecture:\n", model)
     print("\n")
     
-    # Optimizer
+    # Optimizer, loss function, accuracy function
     optimizer = optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    # Loss function
     loss_fn = DiceCELoss()
-    # Accuracy function
     accuracy_fn = dice_score
     
     # Initialize lists to store metrics
@@ -234,16 +229,37 @@ def main():
 
     if args.logdir is not None:
         print(f'Writing training logs to {args.logdir}...')
+        metadata = {
+            "cli_args": {
+                "epochs": args.epochs,
+                "batch_size": args.batch_size,
+                "lr": args.lr,
+                "weight_decay": args.weight_decay,
+                "skip_connections": skip_connections,
+            },
+            "env": {
+                "device": device,
+                "total_params": sum(p.numel() for p in model.parameters()),
+                "trainable_params": sum(p.numel() for p in model.parameters() if p.requires_grad),
+                "train_samples": len(train_x),
+                "valid_samples": len(valid_x),
+            }
+        }
+        data = {
+            "train_losses": train_losses,
+            "valid_losses": valid_losses,
+            "train_accs": train_accs,
+            "valid_accs": valid_accs,
+            "train_times": train_times,
+            "valid_times": valid_times,
+        }
         os.makedirs(args.logdir, exist_ok=True)
-        with open(os.path.join(args.logdir, 'results.json'), 'w') as f:
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        with open(os.path.join(args.logdir, f'results_{timestamp}.json'), 'w') as f:
             f.write(json.dumps(
                 {
-                    "train_losses": train_losses,
-                    "valid_losses": valid_losses,
-                    "train_accs": train_accs,
-                    "valid_accs": valid_accs,
-                    "train_times": train_times,
-                    "valid_times": valid_times,
+                    "metadata": metadata,
+                    "data": data,
                 },
                 indent=4,
             ))

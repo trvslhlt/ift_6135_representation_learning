@@ -32,20 +32,24 @@ class DecoderBlock(nn.Module):
         # c d           0 0 0
         #               c 0 d
         self.upconv = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
-        # refine with double conv. integrate info from skip connection
         self.conv = double_conv_block(in_channels, out_channels)
 
-    def forward(self, x: torch.Tensor, skip: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, skip: torch.Tensor | None) -> torch.Tensor:
         x = self.upconv(x)
-        x = torch.cat([x, skip], dim=1)
+        if skip is not None:
+            # concatenate along channel axis
+            x = torch.cat([x, skip], dim=1)
         x = self.conv(x) 
         return x
 
 
 class UNet(nn.Module):
-    def __init__(self, in_channels: int, num_classes: int, skip_connections: bool):
+
+    skip_connections: bool
+
+    def __init__(self, in_channels: int, num_classes: int, skip_connections = True):
         super().__init__()
-        print(f'!!!!!!!! implement `skip_connections` ({skip_connections})')
+        self.skip_connections = skip_connections
         self.encoder_block1 = double_conv_block(in_channels, 64)
         self.encoder_block2 = double_conv_block(64, 128)
         self.encoder_block3 = double_conv_block(128, 256)
@@ -75,9 +79,9 @@ class UNet(nn.Module):
         e4 = self.encoder_block4(x)
         x = self.pool(e4)
         x = self.encoder_block5(x) # bottleneck
-        x = self.decoder_block1(x, e4)
-        x = self.decoder_block2(x, e3)
-        x = self.decoder_block3(x, e2)
-        x = self.decoder_block4(x, e1)
+        x = self.decoder_block1(x, e4 if self.skip_connections else None)
+        x = self.decoder_block2(x, e3 if self.skip_connections else None)
+        x = self.decoder_block3(x, e2 if self.skip_connections else None)
+        x = self.decoder_block4(x, e1 if self.skip_connections else None)
         x = self.outconv(x)
         return x
