@@ -43,16 +43,22 @@ class DiceLoss(nn.Module):
     def __init__(self):
         super(DiceLoss, self).__init__()
 
-    def forward(self, logits, targets, smooth=1):
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor, smooth=1):
         """
         Compute the Dice Loss between the logits and the targets.
-        In this implementation, we use smoothing to avoid division by zero: it is added to both the numerator and the denominator
+        In this implementation, we use smoothing to avoid division by zero: it is added 
+        to both the numerator and the denominator
         """
-        inputs = torch.sigmoid(logits)
-
-        # TODO: compute the Dice coefficient
-
-        return 1. - dice
+        # 2 * card(X intersection Y) + smooth
+        # -----------------------------------
+        #      card(X) + card(Y) + smooth
+        inputs = torch.sigmoid(logits).flatten()
+        targets = targets.flatten()
+        intersection = (inputs * targets).sum() # soft intersection with probabilities
+        num = 2 * intersection + smooth
+        denom = inputs.sum() + targets.sum() + smooth
+        dice = num / denom
+        return 1 - dice
     
 
 class BinaryCELoss(nn.Module):
@@ -71,7 +77,8 @@ class DiceCELoss(nn.Module):
     def __init__(self):
         super(DiceCELoss, self).__init__()
         self.diceLoss = DiceLoss()
-        # In this case, we use the binary cross entropy loss instead of the cross entropy loss since we have a binary segmentation task.
+        # In this case, we use the binary cross entropy loss 
+        # instead of the cross entropy loss since we have a binary segmentation task.
         self.ceLoss = BinaryCELoss()
 
     def forward(self, logits, targets):

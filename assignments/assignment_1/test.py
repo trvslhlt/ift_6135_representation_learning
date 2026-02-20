@@ -105,11 +105,12 @@ class TestMobileNet(unittest.TestCase):
 
 class TestUNet(unittest.TestCase):
     def test_UNet_forward(self):
-        model = UNet(input_shape=3, num_classes=5)
+        num_classes = 5
         batch_size = 2
-        inputs = torch.randn(2, 3, 160, 160)
+        model = UNet(in_channels=3, num_classes=num_classes)
+        inputs = torch.randn(batch_size, 3, 160, 160)
         outputs = model(inputs)
-        self.assertEqual(outputs.shape, (2, 5, 160, 160))
+        self.assertEqual(outputs.shape, (batch_size, num_classes, 160, 160))
 
     def test_DiceLoss(self):
         my_dice = DiceLoss()

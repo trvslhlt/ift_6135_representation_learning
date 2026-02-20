@@ -5,7 +5,7 @@ Input:
     - model: str, name of the model to train
     - logdir: str, directory to save logs
     - batch_size: int, batch size
-    - num_epochs: int, number of epochs
+    - epochs: int, number of epochs
     - lr: float, learning rate
     - weight_decay: float, weight decay
     - print_every: int, print every
