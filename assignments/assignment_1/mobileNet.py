@@ -59,7 +59,11 @@ class MobileNet(nn.Module):
         """
         # input         filter
         # 224x224x3     3x3x3x32  
-        self.conv0 = nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1, bias=False)
+        self.conv0 = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1, bias=False),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+        )
         # 112x112x32    3x3x32 dw
         # 112x112x32    1x1x32x64
         self.dw_sep_conv0 = DepthwiseSeparableConv(32, 64, 1, 1)
