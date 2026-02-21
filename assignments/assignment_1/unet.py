@@ -68,7 +68,6 @@ class UNet(nn.Module):
             kernel_size=1,
             stride=1,
             padding=0,
-            bias=False,
         )
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
