@@ -111,4 +111,6 @@ def get_transform(type: str | None = None) -> v2.Transform:
     elif type is not None:
         print(f'transform type "{type}" not supported. none applied')
     
+    if not transforms:
+        return v2.Identity()
     return v2.Compose(transforms)
