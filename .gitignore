@@ -28,7 +28,11 @@ Thumbs.db
 
 # Data files
 data/*
+**/data/*
 !data/.gitkeep
+
+# Logs
+**/logs/*
 
 # Secrets
 .env
