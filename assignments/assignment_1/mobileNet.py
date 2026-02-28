@@ -17,18 +17,14 @@ class DepthwiseSeparableConv(nn.Module):
             stride_dw: stride for depthwise convolution
             stride_pw: stride for pointwise convolution
         """
-        self.depthwise = nn.Conv2d(
-            in_channels, 
-            in_channels, 
+        self.depthwise = nn.Conv2d(in_channels, in_channels, 
             kernel_size=3,
             stride=stride_dw,
             padding=1,
             groups=in_channels,
             bias=False)
         self.bn1 = nn.BatchNorm2d(in_channels)
-        self.pointwise = nn.Conv2d(
-            in_channels,
-            out_channels,
+        self.pointwise = nn.Conv2d(in_channels, out_channels,
             kernel_size=1,
             stride=stride_pw,
             padding=0,

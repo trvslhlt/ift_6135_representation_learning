@@ -177,7 +177,7 @@ def main():
     print("\n")
     
     # Optimizer
-    optimizer = optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     # Loss function
     loss_fn = torch.nn.CrossEntropyLoss()
     # Accuracy function
