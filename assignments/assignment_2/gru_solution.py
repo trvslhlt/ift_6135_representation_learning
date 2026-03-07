@@ -84,6 +84,7 @@ class GRU(nn.Module):
         hidden_states = h_t.unsqueeze(0)
         return torch.FloatTensor(outputs), hidden_states
 
+
 class Attn(nn.Module):
     def __init__(
         self,
@@ -189,10 +190,22 @@ class Encoder(nn.Module):
             The final hidden state.
             - h (`torch.FloatTensor` of shape `(num_layers, batch_size, hidden_size)`)
         """
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # get embeddings for token indices
+        x = self.embedding(inputs)
+        # apply droupout to regularize the model, should be low for RNN inputs
+        # applied after embedding because '0' index in the input corresponds to some token
+        # '0' in the embedding corresponds to a vector of zeros
+        x = self.dropout(x)
+        # run the bidirectional GRU, which returns the output for each time step and the final hidden state
+        # x has shape (batch_size, sequence_length, hidden_size*2)
+        # hidden_states has shape (num_layers*2, batch_size, hidden_size)
+        x, hidden_states = self.rnn(x, hidden_states)
+        # split the forward and backward outputs
+        # add them together
+        x = x[:, :, :self.hidden_size] + x[:, :, self.hidden_size:]
+        # same for hidden states
+        hidden_states = torch.FloatTensor(hidden_states[:self.num_layers] + hidden_states[self.num_layers:])
+        return x, hidden_states
 
     def initial_states(self, batch_size, device=None):
         if device is None:
@@ -201,6 +214,7 @@ class Encoder(nn.Module):
         # The initial state is a constant here, and is not a learnable parameter
         h_0 = torch.zeros(shape, dtype=torch.float, device=device)
         return h_0
+
 
 class DecoderAttn(nn.Module):
     def __init__(
