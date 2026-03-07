@@ -1,3 +1,4 @@
+import typing
 import numpy as np
 import torch
 import torch.nn as nn
@@ -82,7 +83,7 @@ class GRU(nn.Module):
 
         outputs = torch.cat(outputs, dim=1)
         hidden_states = h_t.unsqueeze(0)
-        return torch.FloatTensor(outputs), hidden_states
+        return typing.cast(torch.FloatTensor, outputs), hidden_states
 
 
 class Attn(nn.Module):
@@ -94,11 +95,8 @@ class Attn(nn.Module):
         super().__init__()
         self.hidden_size = hidden_size
         self.dropout = nn.Dropout(p=dropout)
-
         self.W = nn.Linear(hidden_size*2, hidden_size)
-
         self.V = nn.Linear(hidden_size, hidden_size)
-
         self.tanh = nn.Tanh()
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
@@ -132,7 +130,37 @@ class Attn(nn.Module):
         x_attn (`torch.FloatTensor` of shape `(batch_size, sequence_length, 1)`)
             The attention vector.
         """
-        pass
+        # get the values of the final hidden layer
+        h = hidden_states[-1]
+        # reshape the hidden state so it can be broadcast to the input shape
+        # (batch_size, hidden_size) -> (batch_size, 1, hidden_size)
+        h = h.unsqueeze(1)
+        # duplicate the hidden state to match the input shape
+        # (batch_size, 1, hidden_size) -> (batch_size, sequence_length, hidden_size)
+        h = h.expand_as(inputs)
+        # pair hidden states with inputs
+        combined = torch.cat([inputs, h], dim=2)
+        # project combined to hidden size
+        energy = self.W(combined)
+        # activation function used in original Bahdanau paper
+        # - centered at 0 allowing positive and negative values
+        # - smooth gradients unlike ReLU
+        energy = self.tanh(energy)
+        # transform energy so the dot product will yeild meaningful attention scores
+        energy = self.V(energy)
+        # compute attention scores (scalars)
+        x_attention = (energy * inputs).sum(dim=2, keepdim=True)
+        # apply mask to attention scores to remove values for padding tokens
+        if mask is not None:
+            # set masked values to -inf so they will be 0 after softmax
+            x_attention = x_attention.masked_fill(mask.unsqueeze(2) == 0, float('-inf'))
+        # convert to probabilities
+        x_attention = self.softmax(x_attention)
+        # apply dropout to prevent overlearning on specific positions
+        x_attention = self.dropout(x_attention)
+        # elementwise multiply
+        outputs = inputs * x_attention
+        return outputs, x_attention
 
 
 class Encoder(nn.Module):
@@ -192,9 +220,9 @@ class Encoder(nn.Module):
         """
         # get embeddings for token indices
         x = self.embedding(inputs)
-        # apply droupout to regularize the model, should be low for RNN inputs
+        # apply dropout to regularize the model, should be low for RNN inputs
         # applied after embedding because '0' index in the input corresponds to some token
-        # '0' in the embedding corresponds to a vector of zeros
+        # '0' in the embedding corresponds to a meaningful regularization
         x = self.dropout(x)
         # run the bidirectional GRU, which returns the output for each time step and the final hidden state
         # x has shape (batch_size, sequence_length, hidden_size*2)
@@ -204,8 +232,8 @@ class Encoder(nn.Module):
         # add them together
         x = x[:, :, :self.hidden_size] + x[:, :, self.hidden_size:]
         # same for hidden states
-        hidden_states = torch.FloatTensor(hidden_states[:self.num_layers] + hidden_states[self.num_layers:])
-        return x, hidden_states
+        final_hidden_states = hidden_states[:self.num_layers] + hidden_states[self.num_layers:]
+        return x, typing.cast(torch.FloatTensor, final_hidden_states)
 
     def initial_states(self, batch_size, device=None):
         if device is None:
