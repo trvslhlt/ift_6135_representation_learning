@@ -37,7 +37,11 @@ class GRU(nn.Module):
             nn.init.uniform_(param, a=-(1/hidden_size)**0.5, b=(1/hidden_size)**0.5)
 
 
-    def forward(self, inputs: torch.FloatTensor, hidden_states: torch.FloatTensor) -> tuple[torch.FloatTensor, torch.FloatTensor]:
+    def forward(
+            self, 
+            inputs: torch.FloatTensor, 
+            hidden_states: torch.FloatTensor
+        ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         """GRU.
 
         This is a Gated Recurrent Unit
@@ -99,7 +103,12 @@ class Attn(nn.Module):
         self.softmax = nn.Softmax(dim=1)
 
 
-    def forward(self, inputs, hidden_states, mask = None):
+    def forward(
+            self, 
+            inputs: torch.FloatTensor, 
+            hidden_states: torch.FloatTensor, 
+            mask: torch.LongTensor | None = None
+        ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         """Soft Attention mechanism.
 
         This is a one layer MLP network that implements Soft (i.e. Bahdanau) Attention with masking
@@ -122,9 +131,6 @@ class Attn(nn.Module):
         x_attn (`torch.FloatTensor` of shape `(batch_size, sequence_length, 1)`)
             The attention vector.
         """
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
         pass
 
 
@@ -157,7 +163,11 @@ class Encoder(nn.Module):
             bidirectional=True,
         )
 
-    def forward(self, inputs, hidden_states):
+    def forward(
+            self,
+            inputs: torch.FloatTensor,
+            hidden_states: torch.FloatTensor
+        ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         """GRU Encoder.
 
         This is a Bidirectional Gated Recurrent Unit Encoder network
@@ -222,7 +232,12 @@ class DecoderAttn(nn.Module):
         else:
             self.mlp_attn = None
 
-    def forward(self, inputs, hidden_states, mask=None):
+    def forward(
+            self,
+            inputs: torch.FloatTensor,
+            hidden_states: torch.FloatTensor,
+            mask: torch.LongTensor | None = None
+        ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         """GRU Decoder network with Soft attention
 
         This is a Unidirectional Gated Recurrent Unit Encoder network
@@ -281,7 +296,11 @@ class EncoderDecoder(nn.Module):
             with_attn=with_attn,
           )
 
-    def forward(self, inputs, mask=None):
+    def forward(
+            self,
+            inputs: torch.LongTensor,
+            mask: torch.LongTensor
+        ) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         """GRU Encoder-Decoder network with Soft attention.
 
         This is a Gated Recurrent Unit network for Sentiment Analysis. This
