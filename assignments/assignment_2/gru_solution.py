@@ -142,7 +142,7 @@ class Attn(nn.Module):
         combined = torch.cat([inputs, h], dim=2)
         # project combined to hidden size
         energy = self.W(combined)
-        # activation function used in original Bahdanau paper
+        # activation function used in original Bahdanau paper (https://arxiv.org/pdf/1409.0473)
         # - centered at 0 allowing positive and negative values
         # - smooth gradients unlike ReLU
         energy = self.tanh(energy)
@@ -302,10 +302,13 @@ class DecoderAttn(nn.Module):
             The final hidden state.
             - h (`torch.FloatTensor` of shape `(num_layers, batch_size, hidden_size)`)
         """
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # The decoder must take in the encoder outputs as input and hidden state, and these
+        # must be fed into the attention mechanism. The attended input and the encoder hidden state
+        # will then be fed into a GRU layer.
+        x, hidden_states = self.rnn(inputs, hidden_states)
+        if self.mlp_attn is not None:
+            x, _ = self.mlp_attn(x, hidden_states, mask)
+        return x, hidden_states
 
 
 class EncoderDecoder(nn.Module):
