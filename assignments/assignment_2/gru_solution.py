@@ -14,19 +14,22 @@ class GRU(nn.Module):
         self.input_size = input_size
         self.hidden_size = hidden_size
 
-
+        # weights for input
         self.w_ir = nn.Parameter(torch.empty(hidden_size, input_size))
         self.w_iz = nn.Parameter(torch.empty(hidden_size, input_size))
         self.w_in = nn.Parameter(torch.empty(hidden_size, input_size))
 
+        # biases for input
         self.b_ir = nn.Parameter(torch.empty(hidden_size))
         self.b_iz = nn.Parameter(torch.empty(hidden_size))
         self.b_in = nn.Parameter(torch.empty(hidden_size))
 
+        # weights for hidden state
         self.w_hr = nn.Parameter(torch.empty(hidden_size, hidden_size))
         self.w_hz = nn.Parameter(torch.empty(hidden_size, hidden_size))
         self.w_hn = nn.Parameter(torch.empty(hidden_size, hidden_size))
 
+        # biases for hidden state
         self.b_hr = nn.Parameter(torch.empty(hidden_size))
         self.b_hz = nn.Parameter(torch.empty(hidden_size))
         self.b_hn = nn.Parameter(torch.empty(hidden_size))
@@ -34,7 +37,7 @@ class GRU(nn.Module):
             nn.init.uniform_(param, a=-(1/hidden_size)**0.5, b=(1/hidden_size)**0.5)
 
 
-    def forward(self, inputs, hidden_states):
+    def forward(self, inputs: torch.FloatTensor, hidden_states: torch.FloatTensor) -> tuple[torch.FloatTensor, torch.FloatTensor]:
         """GRU.
 
         This is a Gated Recurrent Unit
@@ -54,10 +57,28 @@ class GRU(nn.Module):
         hidden_states (`torch.FloatTensor` of shape `(1, batch_size, hidden_size)`)
           The final hidden state.
         """
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        _, sequence_length, _ = inputs.shape
+        h_t = hidden_states.squeeze(0)
+
+        outputs = []
+        
+        # F.sigmoid is deprecated, use torch.sigmoid
+        # T transposes all dimensions, t() raises an error if there are more than 2 dimensions
+        for i in range(sequence_length):
+            x_t = inputs[:, i, :] # select all features from all batches at time i
+            # rt = σ(xtWTir + bir + ht−1WThr + bhr)    
+            r_t = torch.sigmoid(x_t @ self.w_ir.t() + self.b_ir + h_t @ self.w_hr.t() + self.b_hr)
+            # zt = σ(xtWTiz + biz + ht−1WThz + bhz)
+            z_t = torch.sigmoid(x_t @ self.w_iz.t() + self.b_iz + h_t @ self.w_hz.t() + self.b_hz)
+            # nt = tanh(xtWTin + bin + rt ∗(ht−1WThi + bhi))
+            n_t = torch.tanh(x_t @ self.w_in.t() + self.b_in + r_t * (h_t @ self.w_hn.t() + self.b_hn))
+            # ht = (1−zt) ∗nt + zt ∗ht−1
+            h_t = (1 - z_t) * n_t + z_t * h_t
+            outputs.append(h_t.unsqueeze(1)) # add a dimension for sequence length
+
+        outputs = torch.cat(outputs, dim=1)
+        hidden_states = h_t.unsqueeze(0)
+        return torch.FloatTensor(outputs), hidden_states
 
 class Attn(nn.Module):
     def __init__(
