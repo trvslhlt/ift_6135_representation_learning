@@ -59,7 +59,7 @@ class LayerNorm(nn.Module):
 
 
 class MultiHeadedAttention(nn.Module):
-    def __init__(self, head_size, num_heads):
+    def __init__(self, head_size: int, num_heads: int):
         super().__init__()
         self.head_size = head_size
         self.num_heads = num_heads
@@ -68,7 +68,12 @@ class MultiHeadedAttention(nn.Module):
         # TODO: Write your code here
         # ==========================
 
-    def get_attention_weights(self, queries, keys, mask=None):
+    def get_attention_weights(
+            self,
+            queries: torch.FloatTensor,
+            keys: torch.FloatTensor,
+            mask: torch.LongTensor | None = None
+        ) -> torch.FloatTensor:
         """Compute the attention weights.
 
         This computes the attention weights for all the sequences and all the
@@ -105,7 +110,13 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         pass
 
-    def apply_attention(self, queries, keys, values, mask=None):
+    def apply_attention(
+            self,
+            queries: torch.FloatTensor,
+            keys: torch.FloatTensor,
+            values: torch.FloatTensor,
+            mask: torch.LongTensor | None = None
+        ) -> torch.FloatTensor:
         """Apply the attention.
 
         This computes the output of the attention, for all the sequences and
@@ -152,7 +163,7 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         pass
 
-    def split_heads(self, tensor):
+    def split_heads(self, tensor: torch.FloatTensor) -> torch.FloatTensor:
         """Split the head vectors.
 
         This function splits the head vectors that have been concatenated (e.g.
@@ -181,7 +192,7 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         pass
 
-    def merge_heads(self, tensor):
+    def merge_heads(self, tensor: torch.FloatTensor) -> torch.FloatTensor:
         """Merge the head vectors.
 
         This function concatenates the head vectors in a single vector. This
@@ -209,7 +220,11 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         pass
 
-    def forward(self, hidden_states, mask=None):
+    def forward(
+            self,
+            hidden_states: torch.FloatTensor,
+            mask: torch.LongTensor | None = None
+        ) -> torch.FloatTensor:
         """Multi-headed attention.
 
         This applies the multi-headed attention on the input tensors `hidden_states`.
@@ -248,9 +263,14 @@ class MultiHeadedAttention(nn.Module):
         # ==========================
         pass
 
+
 class PostNormAttentionBlock(nn.Module):
 
-    def __init__(self, embed_dim, hidden_dim, num_heads, dropout=0.30):
+    def __init__(
+            self,
+            embed_dim: int,
+            hidden_dim: int,
+            num_heads: int, dropout: float = 0.30):
         """
         Inputs:
             embed_dim - Dimensionality of input and attention feature vectors
@@ -260,8 +280,6 @@ class PostNormAttentionBlock(nn.Module):
             dropout - Amount of dropout to apply in the feed-forward network
         """
         super().__init__()
-
-
         self.layer_norm_1 = LayerNorm(embed_dim)
         self.attn = MultiHeadedAttention(head_size=embed_dim//num_heads, num_heads=num_heads)
         self.layer_norm_2 = LayerNorm(embed_dim)
@@ -274,8 +292,10 @@ class PostNormAttentionBlock(nn.Module):
         )
 
 
-    def forward(self, x, mask=None):
-
+    def forward(
+        self, x: torch.FloatTensor, 
+        mask: torch.LongTensor | None = None
+    ) -> torch.FloatTensor:
         attention_outputs = self.attn(x, mask)
         attention_outputs = self.layer_norm_1(x + attention_outputs)
         outputs = self.linear(attention_outputs)
@@ -285,7 +305,12 @@ class PostNormAttentionBlock(nn.Module):
 
 class PreNormAttentionBlock(nn.Module):
 
-    def __init__(self, embed_dim, hidden_dim, num_heads, dropout=0.0):
+    def __init__(
+            self,
+            embed_dim: int,
+            hidden_dim: int,
+            num_heads: int,
+            dropout: float = 0.0):
         """A decoder layer.
 
         This module combines a Multi-headed Attention module and an MLP to
@@ -366,7 +391,11 @@ class Transformer(nn.Module):
         self.cls_token = nn.Parameter(torch.randn(1,1,embed_dim))
         self.pos_embedding = nn.Parameter(torch.randn(1,self.sequence_length,embed_dim))
 
-    def forward(self, x, mask=None):
+    def forward(
+            self,
+            x: torch.LongTensor,
+            mask: torch.LongTensor | None = None
+        ) -> torch.FloatTensor:
         """Transformer
 
         This is a small version of  Transformer
@@ -386,13 +415,13 @@ class Transformer(nn.Module):
         """
         # Preprocess input
 
-        x = self.embedding(x)
+        x1 = self.embedding(x)
         B, T, _ = x.shape
 
         # Add CLS token and positional encoding
         cls_token = self.cls_token.repeat(B, 1, 1)
-        x = torch.cat([cls_token, x], dim=1)
-        x = x + self.pos_embedding[:,:T+1]
+        x2 = torch.cat([cls_token, x1], dim=1)
+        x3 = x2 + self.pos_embedding[:,:T+1]
         # Add dropout and then the transformer (remember to update the mask because of the CLS token)
         # ==========================
         # TODO: Write your code here
