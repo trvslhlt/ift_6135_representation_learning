@@ -1,8 +1,6 @@
 import typing
-import numpy as np
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class GRU(nn.Module):
@@ -70,7 +68,8 @@ class GRU(nn.Module):
         # F.sigmoid is deprecated, use torch.sigmoid
         # T transposes all dimensions, t() raises an error if there are more than 2 dimensions
         for i in range(sequence_length):
-            x_t = inputs[:, i, :] # select all features from all batches at time i
+            # select all features from all batches at time i
+            x_t = inputs[:, i, :]
             # rt = σ(xtWTir + bir + ht−1WThr + bhr)    
             r_t = torch.sigmoid(x_t @ self.w_ir.t() + self.b_ir + h_t @ self.w_hr.t() + self.b_hr)
             # zt = σ(xtWTiz + biz + ht−1WThz + bhz)
@@ -79,7 +78,8 @@ class GRU(nn.Module):
             n_t = torch.tanh(x_t @ self.w_in.t() + self.b_in + r_t * (h_t @ self.w_hn.t() + self.b_hn))
             # ht = (1−zt) ∗nt + zt ∗ht−1
             h_t = (1 - z_t) * n_t + z_t * h_t
-            outputs.append(h_t.unsqueeze(1)) # add a dimension for sequence length
+            # add a dimension for sequence length
+            outputs.append(h_t.unsqueeze(1))
 
         outputs = torch.cat(outputs, dim=1)
         hidden_states = h_t.unsqueeze(0)
