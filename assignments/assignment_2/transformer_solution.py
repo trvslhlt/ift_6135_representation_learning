@@ -1,3 +1,4 @@
+import typing
 import numpy as np
 import torch
 import torch.nn as nn
@@ -5,18 +6,21 @@ import torch.nn.functional as F
 import math
 
 
+# original paper: https://arxiv.org/pdf/1607.06450
 class LayerNorm(nn.Module):
-    def __init__(self, hidden_size, eps=1e-5):
+    def __init__(self, hidden_size: int, eps: float = 1e-5):
         super().__init__()
         self.hidden_size = hidden_size
+        # eps is primarily used for numerical stability
         self.eps = eps
-
+        # from the paper, weight is 'g' (gain)
         self.weight = nn.Parameter(torch.Tensor(hidden_size))
+        # and bias is 'b' (bias)
         self.bias = nn.Parameter(torch.Tensor(hidden_size))
-
+        # initialize to unit scale and 0 bias
         self.reset_parameters()
 
-    def forward(self, inputs):
+    def forward(self, inputs: torch.FloatTensor) -> torch.FloatTensor:
         """Layer Normalization.
 
         This module applies Layer Normalization, with rescaling and shift,
@@ -34,11 +38,20 @@ class LayerNorm(nn.Module):
         outputs (`torch.FloatTensor` of shape `(*dims, hidden_size)`)
             The output tensor, having the same shape as `inputs`.
         """
-
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # compute the mean across the last dimension (feature values)
+        # keep the input dimensions for broadcasting
+        mean = inputs.mean(dim=-1, keepdim=True)
+        # same for variance
+        # use the biased variance per the paper (eqs 3, 4)
+        # why? "In LayerNorm, we aren't trying to "estimate" a hidden population parameter; 
+        # we are simply trying to re-scale a vector so it is easier to optimize"
+        var = inputs.var(dim=-1, keepdim=True, unbiased=False)
+        # normalize the inputs
+        x = (inputs - mean) / torch.sqrt(var + self.eps)
+        # rescale and shift using the learnable parameters ('g' and 'b')
+        output = self.weight * x + self.bias
+        return typing.cast(torch.FloatTensor, output)
+        
 
     def reset_parameters(self):
         nn.init.ones_(self.weight)
