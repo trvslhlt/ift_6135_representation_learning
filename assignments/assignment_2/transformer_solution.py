@@ -186,11 +186,14 @@ class MultiHeadedAttention(nn.Module):
             vectors. Here `dim` is the same dimension as the one in the
             definition of the input `tensor` above.
         """
-
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # tensor: `(batch_size, sequence_length, num_heads * dim)`
+        batch_size, sequence_length, _ = tensor.shape
+        # create a new dimension for the heads
+        # t2: `(batch_size, sequence_length, num_heads, dim)`
+        t2 = tensor.reshape(batch_size, sequence_length, self.num_heads, -1)
+        # output: `(batch_size, num_heads, sequence_length, dim)`
+        output = t2.transpose(1, 2)
+        return typing.cast(torch.FloatTensor, output)
 
     def merge_heads(self, tensor: torch.FloatTensor) -> torch.FloatTensor:
         """Merge the head vectors.
@@ -214,11 +217,14 @@ class MultiHeadedAttention(nn.Module):
             vectors. Here `dim` is the same dimension as the one in the
             definition of the input `tensor` above.
         """
-
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # tensor: `(batch_size, num_heads, sequence_length, dim)`
+        batch_size, _, sequence_length, dim = tensor.shape
+        # t2: `(batch_size, sequence_length, num_heads, dim)`
+        t2 = tensor.transpose(1, 2)
+        # consolidate the heads into a single dimension
+        # use `self.num_heads` over the value read from the tensor to catch inconsistencies
+        output = t2.reshape(batch_size, sequence_length, self.num_heads * dim)
+        return typing.cast(torch.FloatTensor, output)
 
     def forward(
             self,
