@@ -105,10 +105,21 @@ class MultiHeadedAttention(nn.Module):
             Tensor containing the attention weights for all the heads and all
             the sequences in the batch.
         """
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # queries: `(batch_size, num_heads, sequence_length, head_size)`
+        # keys: `(batch_size, num_heads, sequence_length, head_size)`
+        scores = queries @ keys.transpose(-2, -1) / math.sqrt(self.head_size)
+        # sequences may have different lengths but the tensors need to be rectangular
+        # so positions of shorter sequences are paddeed
+        # we apply masking so attention ignores padded positions
+        if mask is not None:
+            # mask: `(batch_size, sequence_length)`
+            # unsqueeze so it has shape `(batch_size, 1, 1, sequence_length)`
+            mask1 = mask.unsqueeze(1).unsqueeze(2)
+            # set the masked positions to a very large negative value (e.g. -1e9)
+            scores = scores.masked_fill(mask1 == 0, float('-inf'))
+        attention_weights = F.softmax(scores, dim=-1)
+        return typing.cast(torch.FloatTensor, attention_weights)
+        
 
     def apply_attention(
             self,

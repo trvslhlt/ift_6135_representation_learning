@@ -78,7 +78,7 @@ class GRU(nn.Module):
             n_t = torch.tanh(x_t @ self.w_in.t() + self.b_in + r_t * (h_t @ self.w_hn.t() + self.b_hn))
             # ht = (1−zt) ∗nt + zt ∗ht−1
             h_t = (1 - z_t) * n_t + z_t * h_t
-            # add a dimension for sequence length
+            # add a dimension for sequence length (alts: `h_t[:, None, :]`, `h_t[:, None]`)
             outputs.append(h_t.unsqueeze(1))
 
         outputs = torch.cat(outputs, dim=1)
