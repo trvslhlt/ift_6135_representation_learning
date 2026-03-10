@@ -370,12 +370,19 @@ class PreNormAttentionBlock(nn.Module):
         )
 
 
-    def forward(self, x, mask=None):
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
-
+    def forward(self, x: torch.FloatTensor, mask: torch.LongTensor | None = None) -> torch.FloatTensor:
+        # NOTE: "pre" here means the normalization is applied before computing attention
+        # refer to `PostNormAttentionBlock` for inspiration
+        # branch to normalize and compute attention
+        x1 = self.layer_norm_1(x)
+        x1 = self.attn(x1, mask)
+        # merge with addition
+        x = x + x1
+        # branch to normalize and compute the MLP
+        x2 = self.layer_norm_2(x)
+        x2 = self.linear(x2)
+        # merge with addition
+        return x + x2
 
 
 class Transformer(nn.Module):
