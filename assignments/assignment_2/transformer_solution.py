@@ -63,6 +63,11 @@ class MultiHeadedAttention(nn.Module):
         super().__init__()
         self.head_size = head_size
         self.num_heads = num_heads
+        embed_dim = head_size * num_heads
+        self.w_q = nn.Linear(embed_dim, embed_dim)
+        self.w_k = nn.Linear(embed_dim, embed_dim)
+        self.w_v = nn.Linear(embed_dim, embed_dim)
+        self.w_y = nn.Linear(embed_dim, embed_dim)
 
         # ==========================
         # TODO: Write your code here
@@ -117,9 +122,8 @@ class MultiHeadedAttention(nn.Module):
             mask1 = mask.unsqueeze(1).unsqueeze(2)
             # set the masked positions to a very large negative value (e.g. -1e9)
             scores = scores.masked_fill(mask1 == 0, float('-inf'))
-        attention_weights = F.softmax(scores, dim=-1)
-        return typing.cast(torch.FloatTensor, attention_weights)
-        
+        weights = F.softmax(scores, dim=-1)
+        return typing.cast(torch.FloatTensor, weights)
 
     def apply_attention(
             self,
@@ -168,11 +172,13 @@ class MultiHeadedAttention(nn.Module):
             Tensor containing the concatenated outputs of the attention for all
             the sequences in the batch, and all positions in each sequence.
         """
-
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # get attention weights
+        weights = self.get_attention_weights(queries, keys, mask)
+        # compute the attended values
+        attended_values = weights @ values
+        # merge heads
+        outputs = self.merge_heads(typing.cast(torch.FloatTensor, attended_values))
+        return typing.cast(torch.FloatTensor, outputs)
 
     def split_heads(self, tensor: torch.FloatTensor) -> torch.FloatTensor:
         """Split the head vectors.
@@ -275,10 +281,22 @@ class MultiHeadedAttention(nn.Module):
             Tensor containing the output of multi-headed attention for all the
             sequences in the batch, and all positions in each sequence.
         """
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # compute heads for queries, keys, and values with linear projections
+        # all heads: `(batch_size, sequence_length, num_heads * head_size)`
+        q_heads = self.w_q(hidden_states)
+        k_heads = self.w_k(hidden_states)
+        v_heads = self.w_v(hidden_states)
+        # split the heads into a separate dimension
+        # queries, keys, and values: `(batch_size, num_heads, sequence_length, head_size)`
+        q = self.split_heads(q_heads)
+        k = self.split_heads(k_heads)
+        v = self.split_heads(v_heads)
+        # compute the attended values and merge the heads
+        # y: `(batch_size, sequence_length, num_heads * head_size)`
+        y = self.apply_attention(q, k, v, mask)
+        # compute output with linear projection
+        output = self.w_y(y)
+        return typing.cast(torch.FloatTensor, output)
 
 
 class PostNormAttentionBlock(nn.Module):
