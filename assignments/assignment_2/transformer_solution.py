@@ -59,6 +59,7 @@ class LayerNorm(nn.Module):
 
 
 class MultiHeadedAttention(nn.Module):
+
     def __init__(self, head_size: int, num_heads: int):
         super().__init__()
         self.head_size = head_size
@@ -68,10 +69,6 @@ class MultiHeadedAttention(nn.Module):
         self.w_k = nn.Linear(embed_dim, embed_dim)
         self.w_v = nn.Linear(embed_dim, embed_dim)
         self.w_y = nn.Linear(embed_dim, embed_dim)
-
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
 
     def get_attention_weights(
             self,
