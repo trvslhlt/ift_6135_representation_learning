@@ -85,8 +85,7 @@ class GRU(nn.Module):
             h_t = (1 - z_t) * n_t + z_t * h_t
             # add a dimension for sequence length (alts: `h_t[:, None, :]`, `h_t[:, None]`)
             # (batch_size, hidden_size) -> (batch_size, 1, hidden_size)
-            h_t = h_t.unsqueeze(1)
-            outputs.append(h_t)
+            outputs.append(h_t.unsqueeze(1))
 
         # concatenate outputs from all time steps
         # outputs: (batch_size, sequence_length, hidden_size)
