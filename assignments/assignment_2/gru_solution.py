@@ -61,27 +61,41 @@ class GRU(nn.Module):
           The final hidden state.
         """
         _, sequence_length, _ = inputs.shape
+        # h_t: (batch_size, hidden_size)
         h_t = hidden_states.squeeze(0)
 
         outputs = []
         
         # F.sigmoid is deprecated, use torch.sigmoid
-        # T transposes all dimensions, t() raises an error if there are more than 2 dimensions
+        # .T transposes all dimensions, .t() raises an error if there are more than 2 dimensions
         for i in range(sequence_length):
             # select all features from all batches at time i
             x_t = inputs[:, i, :]
+            # reset gate
             # rt = σ(xtWTir + bir + ht−1WThr + bhr)    
             r_t = torch.sigmoid(x_t @ self.w_ir.t() + self.b_ir + h_t @ self.w_hr.t() + self.b_hr)
+            # update gate
             # zt = σ(xtWTiz + biz + ht−1WThz + bhz)
             z_t = torch.sigmoid(x_t @ self.w_iz.t() + self.b_iz + h_t @ self.w_hz.t() + self.b_hz)
+            # candidate gate
             # nt = tanh(xtWTin + bin + rt ∗(ht−1WThi + bhi))
             n_t = torch.tanh(x_t @ self.w_in.t() + self.b_in + r_t * (h_t @ self.w_hn.t() + self.b_hn))
+            # new gate
             # ht = (1−zt) ∗nt + zt ∗ht−1
             h_t = (1 - z_t) * n_t + z_t * h_t
             # add a dimension for sequence length (alts: `h_t[:, None, :]`, `h_t[:, None]`)
-            outputs.append(h_t.unsqueeze(1))
+            # (batch_size, hidden_size) -> (batch_size, 1, hidden_size)
+            h_t = h_t.unsqueeze(1)
+            outputs.append(h_t)
 
+        # concatenate outputs from all time steps
+        # outputs: (batch_size, sequence_length, hidden_size)
         outputs = torch.cat(outputs, dim=1)
+
+        # add dimension for number of layers
+        # - odd looking dimension ordering is apparently the convention in nn.GRU
+        # - makes sense as adding layer dim, removing sequence dim
+        # hidden_states: (1, batch_size, hidden_size)
         hidden_states = h_t.unsqueeze(0)
         return typing.cast(torch.FloatTensor, outputs), hidden_states
 
@@ -225,11 +239,10 @@ class Encoder(nn.Module):
         # '0' in the embedding corresponds to a meaningful regularization
         x = self.dropout(x)
         # run the bidirectional GRU, which returns the output for each time step and the final hidden state
-        # x has shape (batch_size, sequence_length, hidden_size*2)
-        # hidden_states has shape (num_layers*2, batch_size, hidden_size)
+        # x: (batch_size, sequence_length, hidden_size*2)
+        # hidden_states: (num_layers*2, batch_size, hidden_size)
         x, hidden_states = self.rnn(x, hidden_states)
-        # split the forward and backward outputs
-        # add them together
+        # split the forward and backward outputs, add them together
         x = x[:, :, :self.hidden_size] + x[:, :, self.hidden_size:]
         # same for hidden states
         final_hidden_states = hidden_states[:self.num_layers] + hidden_states[self.num_layers:]
@@ -305,6 +318,9 @@ class DecoderAttn(nn.Module):
         # The decoder must take in the encoder outputs as input and hidden state, and these
         # must be fed into the attention mechanism. The attended input and the encoder hidden state
         # will then be fed into a GRU layer.
+        # inputs: (batch_size, sequence_length, hidden_size)
+        # hidden_states: (num_layers, batch_size, hidden_size)
+        # x: (batch_size, sequence_length, hidden_size)
         x, hidden_states = self.rnn(inputs, hidden_states)
         if self.mlp_attn is not None:
             x, _ = self.mlp_attn(x, hidden_states, mask)

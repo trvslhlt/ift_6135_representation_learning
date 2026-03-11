@@ -1,5 +1,4 @@
 import typing
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,7 +16,7 @@ class LayerNorm(nn.Module):
         self.weight = nn.Parameter(torch.Tensor(hidden_size))
         # and bias is 'b' (bias)
         self.bias = nn.Parameter(torch.Tensor(hidden_size))
-        # initialize to unit scale and 0 bias
+        # initialize to unit scale and no bias
         self.reset_parameters()
 
     def forward(self, inputs: torch.FloatTensor) -> torch.FloatTensor:
@@ -43,7 +42,7 @@ class LayerNorm(nn.Module):
         mean = inputs.mean(dim=-1, keepdim=True)
         # same for variance
         # use the biased variance per the paper (eqs 3, 4)
-        # why? "In LayerNorm, we aren't trying to "estimate" a hidden population parameter; 
+        # why? "In LayerNorm, we aren't trying to 'estimate' a hidden population parameter; 
         # we are simply trying to re-scale a vector so it is easier to optimize"
         var = inputs.var(dim=-1, keepdim=True, unbiased=False)
         # normalize the inputs
@@ -107,15 +106,15 @@ class MultiHeadedAttention(nn.Module):
             Tensor containing the attention weights for all the heads and all
             the sequences in the batch.
         """
-        # queries: `(batch_size, num_heads, sequence_length, head_size)`
-        # keys: `(batch_size, num_heads, sequence_length, head_size)`
+        # queries: (batch_size, num_heads, sequence_length, head_size)
+        # keys: (batch_size, num_heads, sequence_length, head_size)
         scores = queries @ keys.transpose(-2, -1) / math.sqrt(self.head_size)
         # sequences may have different lengths but the tensors need to be rectangular
         # so positions of shorter sequences are paddeed
         # we apply masking so attention ignores padded positions
         if mask is not None:
-            # mask: `(batch_size, sequence_length)`
-            # unsqueeze so it has shape `(batch_size, 1, 1, sequence_length)`
+            # mask: (batch_size, sequence_length)
+            # unsqueeze so it has shape (batch_size, 1, 1, sequence_length)
             mask1 = mask.unsqueeze(1).unsqueeze(2)
             # set the masked positions to a very large negative value (e.g. -1e9)
             scores = scores.masked_fill(mask1 == 0, float('-inf'))
@@ -200,12 +199,12 @@ class MultiHeadedAttention(nn.Module):
             vectors. Here `dim` is the same dimension as the one in the
             definition of the input `tensor` above.
         """
-        # tensor: `(batch_size, sequence_length, num_heads * dim)`
+        # tensor: (batch_size, sequence_length, num_heads * dim)
         batch_size, sequence_length, _ = tensor.shape
-        # create a new dimension for the heads
-        # t2: `(batch_size, sequence_length, num_heads, dim)`
+        # partition each head's data in new dimension
+        # t2: (batch_size, sequence_length, num_heads, dim)
         t2 = tensor.reshape(batch_size, sequence_length, self.num_heads, -1)
-        # output: `(batch_size, num_heads, sequence_length, dim)`
+        # output: (batch_size, num_heads, sequence_length, dim)
         output = t2.transpose(1, 2)
         return typing.cast(torch.FloatTensor, output)
 
@@ -231,9 +230,9 @@ class MultiHeadedAttention(nn.Module):
             vectors. Here `dim` is the same dimension as the one in the
             definition of the input `tensor` above.
         """
-        # tensor: `(batch_size, num_heads, sequence_length, dim)`
+        # tensor: (batch_size, num_heads, sequence_length, dim)
         batch_size, _, sequence_length, dim = tensor.shape
-        # t2: `(batch_size, sequence_length, num_heads, dim)`
+        # t2: (batch_size, sequence_length, num_heads, dim)
         t2 = tensor.transpose(1, 2)
         # consolidate the heads into a single dimension
         # use `self.num_heads` over the value read from the tensor to catch inconsistencies
@@ -279,17 +278,17 @@ class MultiHeadedAttention(nn.Module):
             sequences in the batch, and all positions in each sequence.
         """
         # compute heads for queries, keys, and values with linear projections
-        # all heads: `(batch_size, sequence_length, num_heads * head_size)`
+        # all heads: (batch_size, sequence_length, num_heads * head_size)
         q_heads = self.w_q(hidden_states)
         k_heads = self.w_k(hidden_states)
         v_heads = self.w_v(hidden_states)
         # split the heads into a separate dimension
-        # queries, keys, and values: `(batch_size, num_heads, sequence_length, head_size)`
+        # queries, keys, and values: (batch_size, num_heads, sequence_length, head_size)
         q = self.split_heads(q_heads)
         k = self.split_heads(k_heads)
         v = self.split_heads(v_heads)
         # compute the attended values and merge the heads
-        # y: `(batch_size, sequence_length, num_heads * head_size)`
+        # y: (batch_size, sequence_length, num_heads * head_size)
         y = self.apply_attention(q, k, v, mask)
         # compute output with linear projection
         output = self.w_y(y)
@@ -334,6 +333,7 @@ class PostNormAttentionBlock(nn.Module):
 
         outputs = self.layer_norm_2(outputs + attention_outputs)
         return outputs
+
 
 class PreNormAttentionBlock(nn.Module):
 
@@ -412,12 +412,13 @@ class Transformer(nn.Module):
         super().__init__()
 
         #Adding the cls token to the sequnence
-        self.sequence_length= 1 + sequence_length
+        self.sequence_length = 1 + sequence_length
+
         # Layers/Networks
         self.embedding = nn.Embedding(vocabulary_size, embed_dim)
-        if block =="prenorm":
+        if block == "prenorm":
           self.transformer = nn.ModuleList([PreNormAttentionBlock(embed_dim, hidden_dim, num_heads, dropout=dropout) for _ in range(num_layers)])
-        elif block =="postnorm":
+        elif block == "postnorm":
           self.transformer = nn.ModuleList([PostNormAttentionBlock(embed_dim, hidden_dim, num_heads, dropout=dropout) for _ in range(num_layers)])
         else:
           raise ValueError(f"Invalid block type {block}")
@@ -453,22 +454,46 @@ class Transformer(nn.Module):
             A tensor containing the output from the mlp_head.
         """
         # Preprocess input
-
+        # get embeddings for input tokens
+        # x: (batch_size, sequence_length)
+        # x1: (batch_size, sequence_length, embed_dim)
         x1 = self.embedding(x)
-        B, T, _ = x.shape
+        B, T, _ = x1.shape
 
         # Add CLS token and positional encoding
+        # create cls_token for each sequence in the batch
+        # self.cls_token: (1, 1, embed_dim)
+        # cls_token: (batch_size, 1, embed_dim)
         cls_token = self.cls_token.repeat(B, 1, 1)
+        # prepend cls_token to input embeddings
+        # x2: (batch_size, sequence_length + 1, embed_dim)
         x2 = torch.cat([cls_token, x1], dim=1)
-        x3 = x2 + self.pos_embedding[:,:T+1]
-        # Add dropout and then the transformer (remember to update the mask because of the CLS token)
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
 
+        # add positional embeddings to input embeddings
+        # - only take upto the batch's sequence length + 1 (may be less than max sequence length)
+        # - consider why adding positional and token embeddings works in the report (compare to concatenation)
+        # x3: (batch_size, sequence_length + 1, embed_dim)
+        # self.pos_embedding: (1, sequence_length + 1, embed_dim)
+        x3 = x2 + self.pos_embedding[:,:T+1]
+
+        # Add dropout and then the transformer (remember to update the mask because of the CLS token)
+        # apply dropout to regularize the input embeddings
+        # x4: (batch_size, sequence_length + 1, embed_dim)
+        x4 = self.dropout(x3)
+
+        if mask is not None:
+            # create cls_token mask
+            # cls_mask: (batch_size, 1)
+            cls_mask = torch.ones(B, 1, device=mask.device, dtype=mask.dtype)
+            # concatenate cls_token mask with input mask
+            # mask: (batch_size, sequence_length + 1)
+            mask = typing.cast(torch.LongTensor, torch.cat([cls_mask, mask], dim=1))
+        
+        for layer in self.transformer:
+            # run the forward pass of each layer
+            x4 = layer(x4, mask)
 
         # Take the cls token representation and send it to mlp_head
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        pass
+        # output: (batch_size, embed_dim)
+        output = self.mlp_head(x4[:, 0])
+        return output
