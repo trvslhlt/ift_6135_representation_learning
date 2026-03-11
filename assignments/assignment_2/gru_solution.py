@@ -321,9 +321,9 @@ class DecoderAttn(nn.Module):
         # inputs: (batch_size, sequence_length, hidden_size)
         # hidden_states: (num_layers, batch_size, hidden_size)
         # x: (batch_size, sequence_length, hidden_size)
-        x, hidden_states = self.rnn(inputs, hidden_states)
         if self.mlp_attn is not None:
-            x, _ = self.mlp_attn(x, hidden_states, mask)
+            x1, _ = self.mlp_attn(inputs, hidden_states, mask)
+        x, hidden_states = self.rnn(x1, hidden_states)
         return x, hidden_states
 
 
