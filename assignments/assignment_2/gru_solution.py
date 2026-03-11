@@ -163,18 +163,18 @@ class Attn(nn.Module):
         # transform energy so the dot product will yeild meaningful attention scores
         energy = self.V(energy)
         # compute attention scores (scalars)
-        x_attention = (energy * inputs).sum(dim=2, keepdim=True)
+        x_attn = energy.sum(dim=2, keepdim=True)
         # apply mask to attention scores to remove values for padding tokens
         if mask is not None:
             # set masked values to -inf so they will be 0 after softmax
-            x_attention = x_attention.masked_fill(mask.unsqueeze(2) == 0, float('-inf'))
+            x_attn = x_attn.masked_fill(mask.unsqueeze(2) == 0, float('-inf'))
         # convert to probabilities
-        x_attention = self.softmax(x_attention)
+        x_attn = self.softmax(x_attn)
         # apply dropout to prevent overlearning on specific positions
-        x_attention = self.dropout(x_attention)
+        x_attn = self.dropout(x_attn)
         # elementwise multiply
-        outputs = inputs * x_attention
-        return outputs, x_attention
+        outputs = inputs * x_attn
+        return outputs, x_attn
 
 
 class Encoder(nn.Module):
