@@ -34,6 +34,11 @@ dependencies = [
     "opencv-python>=4.8.0",
     "segmentation-models-pytorch>=0.3.0",
 
+    # NLP
+    "datasets",
+    "transformers",
+    "textattack",
+
     # Tests
     "pytest>=7.0.0",
 ]
