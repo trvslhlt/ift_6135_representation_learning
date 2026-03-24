@@ -43,6 +43,18 @@ dependencies = [
     "pytest>=7.0.0",
 ]
 
+[project.optional-dependencies]
+assignment3 = [
+    "easydict>=1.13",
+    "pillow>=11.1.0",
+    "PyYAML>=6.0.2",
+    "accelerate>=1.4.0",
+    "safetensors>=0.5.3",
+    "torchmetrics>=1.6.2",
+    "torchtext>=0.18.0; python_version < '3.13'",
+    "urllib3>=2.3.0",
+]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
