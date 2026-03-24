@@ -34,6 +34,9 @@ data/*
 # Logs
 **/logs/*
 
+# Artifacts
+assignments/assignment_3/artifacts/
+
 # Secrets
 .env
 *.key
