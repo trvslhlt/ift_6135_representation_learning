@@ -38,6 +38,7 @@ class DenoiseDiffusion:
     def q_sample(
         self, x0: torch.Tensor, t: torch.Tensor, eps: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
+        '''generate a sample at time `t` given original `x0` and noise `eps`'''
         if eps is None:
             eps = torch.randn_like(x0)
         # Sample x_t from the forward process using the reparameterization formula.
@@ -50,17 +51,18 @@ class DenoiseDiffusion:
         return sample
 
     def p_xt_prev_xt(self, xt: torch.Tensor, t: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        # STUDENT TODO START
+        '''Predict the mean and variance of the previous (less noisy) image'''
         # Reverse process p_theta(x_{t-1} | x_t).
         # xt shape: (batch_size, channels, height, width)
         # t shape: (batch_size,)
         # return mu_theta shape: same as xt
         # return var shape: broadcastable with xt
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement p_xt_prev_xt in q1_ddpm.py.")
-        # STUDENT TODO END
+        a = self.gather(self.beta, t) / torch.sqrt(1 - self.gather(self.alpha_bar, t))
+        b = self.eps_model(xt, t)
+        c = xt - (a * b)
+        d = 1 / torch.sqrt(self.gather(self.alpha, t))
+        mu_theta = d * c
+        var = self.gather(self.beta, t)
         return mu_theta, var
 
     # Alias retained so newer wording can map to the W25-compatible implementation.
