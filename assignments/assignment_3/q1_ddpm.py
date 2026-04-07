@@ -40,17 +40,13 @@ class DenoiseDiffusion:
     ) -> torch.Tensor:
         if eps is None:
             eps = torch.randn_like(x0)
-        # STUDENT TODO START
         # Sample x_t from the forward process using the reparameterization formula.
         # x0 shape: (batch_size, channels, height, width)
         # t shape: (batch_size,)
         # eps shape: same as x0
-        # return shape: same as x0
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement q_sample in q1_ddpm.py.")
-        # STUDENT TODO END
+        # return shape: same as x0        
+        mean, var = self.q_xt_x0(x0, t)
+        sample = mean + torch.sqrt(var) * eps
         return sample
 
     def p_xt_prev_xt(self, xt: torch.Tensor, t: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
