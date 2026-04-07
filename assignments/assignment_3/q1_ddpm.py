@@ -7,28 +7,32 @@ from torch import nn
 class DenoiseDiffusion:
     def __init__(self, eps_model: nn.Module, n_steps: int, device: torch.device):
         super().__init__()
+        # epsilon model
         self.eps_model = eps_model
+        # noise schedule
         self.beta = torch.linspace(0.0001, 0.02, n_steps).to(device)
+        # signal retention at each step
         self.alpha = 1.0 - self.beta
+        # cumulative signal retention
         self.alpha_bar = torch.cumprod(self.alpha, dim=0)
+        # noising steps
         self.n_steps = n_steps
+        # variance used in reverse process
         self.sigma2 = self.beta
 
     def gather(self, c: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
+        '''pick the value of `c` at timesteps `t` and reshape'''
         c_ = c.gather(-1, t)
-        return c_.reshape(-1, 1, 1, 1)
+        return c_.reshape(-1, 1, 1, 1) # (batch, channels, H, W)
 
     def q_xt_x0(self, x0: torch.Tensor, t: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        # STUDENT TODO START
+        '''given an image `x0`, create a noised version at timestes `t`'''
         # q(x_t | x_0): return the closed-form mean and variance.
         # x0 shape: (batch_size, channels, height, width)
         # t shape: (batch_size,)
         # return shapes: both should broadcast correctly with x0
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement q_xt_x0 in q1_ddpm.py.")
-        # STUDENT TODO END
+        mean = torch.sqrt(self.gather(self.alpha_bar, t)) * x0
+        var = 1 - self.gather(self.alpha_bar, t)
         return mean, var
 
     def q_sample(
