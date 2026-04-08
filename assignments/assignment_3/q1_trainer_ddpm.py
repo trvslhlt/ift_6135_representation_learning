@@ -200,16 +200,14 @@ class Trainer:
         images.append(x.detach().cpu().numpy())
 
         for step in tqdm(range(1, n_steps + 1, 1)):
-            # STUDENT TODO START
             # Reverse DDPM loop: compute the current timestep and call
             # self.diffusion.p_sample to update x (same logic as Trainer.sample).
-            # ==========================
-            # TODO: Write your code here
-            # ==========================
-            raise NotImplementedError(
-                "Implement Trainer.generate_intermediate_samples in q1_trainer_ddpm.py."
-            )
-            # STUDENT TODO END
+            t = torch.full(
+                    size=(x.shape[0],), # (batch_size,)
+                    fill_value=n_steps - step, # count down to 0
+                    device=x.device, 
+                    dtype=torch.long)
+            x = self.diffusion.p_sample(x, t)
 
             if step in steps_to_show:
                 images.append(x.detach().cpu().numpy())
