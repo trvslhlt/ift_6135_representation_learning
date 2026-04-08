@@ -51,7 +51,7 @@ class DenoiseDiffusion:
         return sample
 
     def p_xt_prev_xt(self, xt: torch.Tensor, t: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        '''Predict the mean and variance of the previous (less noisy) image'''
+        '''predict the mean and variance of the previous (less noisy) image'''
         # Reverse process p_theta(x_{t-1} | x_t).
         # xt shape: (batch_size, channels, height, width)
         # t shape: (batch_size,)
@@ -70,18 +70,15 @@ class DenoiseDiffusion:
         return self.p_xt_prev_xt(xt, t)
 
     def p_sample(self, xt: torch.Tensor, t: torch.Tensor, set_seed: bool = False) -> torch.Tensor:
+        '''draw sample from p given `xt`'''
         if set_seed:
             torch.manual_seed(42)
-        # STUDENT TODO START
         # Draw one sample from p_theta(x_{t-1} | x_t).
         # xt shape: (batch_size, channels, height, width)
         # t shape: (batch_size,)
         # return shape: same as xt
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement p_sample in q1_ddpm.py.")
-        # STUDENT TODO END
+        mu_theta, var = self.p_xt_prev_xt(xt, t)
+        sample = mu_theta + torch.sqrt(var) * torch.randn_like(xt)
         return sample
 
     def loss(
