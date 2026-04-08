@@ -3,7 +3,8 @@ import os
 
 import torch
 from matplotlib import pyplot as plt
-from torch.amp import GradScaler, autocast
+from torch.amp.grad_scaler import GradScaler
+from torch.amp.autocast_mode import autocast
 from tqdm import tqdm
 
 from ddpm_utils.args import args
@@ -124,16 +125,15 @@ class Trainer:
             if self.args.nb_save is not None:
                 saving_steps = [self.args["n_steps"] - 1]
             for t_ in tqdm(range(n_steps)):
-                # STUDENT TODO START
                 # Reverse DDPM sampling loop.
                 # At each iteration, build the current timestep tensor and update x with
                 # self.diffusion.p_sample so that x goes from x_t to x_{t-1}.
-                # ==========================
-                # TODO: Write your code here
-                # ==========================
-                raise NotImplementedError("Implement Trainer.sample in q1_trainer_ddpm.py.")
-                # STUDENT TODO END
-
+                t = torch.full(
+                    size=(x.shape[0],), # (batch_size,)
+                    fill_value=n_steps - 1 - t_, # count down to 0
+                    device=x.device, 
+                    dtype=torch.long)
+                x = self.diffusion.p_sample(x, t)
                 if self.args.nb_save is not None and t_ in saving_steps:
                     print(f"Showing/saving samples from epoch {self.current_epoch}")
                     self.show_save(
