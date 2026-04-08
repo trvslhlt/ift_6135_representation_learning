@@ -82,8 +82,12 @@ class DenoiseDiffusion:
         return sample
 
     def loss(
-        self, x0: torch.Tensor, noise: Optional[torch.Tensor] = None, set_seed: bool = False
+        self, 
+        x0: torch.Tensor, 
+        noise: Optional[torch.Tensor] = None, 
+        set_seed: bool = False
     ) -> torch.Tensor:
+        '''simplified loss from DDMP objective'''
         if set_seed:
             torch.manual_seed(42)
         batch_size = x0.shape[0]
@@ -92,14 +96,10 @@ class DenoiseDiffusion:
         if noise is None:
             noise = torch.randn_like(x0)
 
-        # STUDENT TODO START
         # Simplified DDPM denoising loss.
         # x0 shape: (batch_size, channels, height, width)
         # noise shape: same as x0
         # return: scalar loss tensor
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement loss in q1_ddpm.py.")
-        # STUDENT TODO END
+        xt = self.q_sample(x0, t, eps=noise)
+        loss = ((noise - self.eps_model(xt, t)) **2).mean(dim=dim).mean() # mean image losses -> mean batch loss
         return loss
