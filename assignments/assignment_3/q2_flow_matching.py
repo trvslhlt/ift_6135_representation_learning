@@ -57,7 +57,7 @@ class FlowMatching:
         # return: scalar loss tensor
         u_t = self.compute_conditional_velocity(x0, noise)
         x_t = self.sample_xt(x0, noise, t)
-        loss = ((self.velocity_model(x_t, t) - u_t) ** 2).mean(dim).mean()
+        loss = ((self.predict_velocity(x_t, t) - u_t) ** 2).mean(dim).mean()
         return loss
 
     def euler_step(self, x_t: torch.Tensor, t: float, dt: float) -> torch.Tensor:
@@ -66,14 +66,7 @@ class FlowMatching:
         # t: current scalar time
         # dt: scalar step size
         # return shape: same as x_t
-        t_tensor = torch.full(
-            size=(x_t.shape[0],1, 1, 1),
-            fill_value=t,
-            device=x_t.device,
-            dtype=x_t.dtype,
-        )
-        x_next = x_t + dt * self.velocity_model(x_t, t_tensor)
-
+        x_next = x_t + dt * self.predict_velocity(x_t, torch.tensor(t))
         return x_next
 
     def euler_sample(self, noise: torch.Tensor, n_steps: int) -> torch.Tensor:
@@ -90,14 +83,8 @@ class FlowMatching:
         # t: current scalar time
         # dt: scalar step size
         # return shape: same as x_t
-        t_tensor = torch.full(
-            size=(x_t.shape[0], 1, 1, 1),
-            fill_value=t,
-            device=x_t.device,
-            dtype=x_t.dtype,
-        )
-        x_m = x_t + (dt / 2) * self.velocity_model(x_t, t_tensor)
-        x_next = x_t + dt * self.velocity_model(x_m, t_tensor + dt / 2)
+        x_m = x_t + (dt / 2) * self.predict_velocity(x_t, torch.tensor(t))
+        x_next = x_t + dt * self.predict_velocity(x_m, torch.tensor(t + dt / 2))
         return x_next
 
     def midpoint_sample(self, noise: torch.Tensor, n_steps: int) -> torch.Tensor:
