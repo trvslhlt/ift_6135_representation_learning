@@ -23,30 +23,20 @@ class FlowMatching:
         return self.velocity_model(x_t, t_model)
 
     def sample_xt(self, x0: torch.Tensor, x1: torch.Tensor, t: torch.Tensor) -> torch.Tensor:
-        # STUDENT TODO START
         # Straight-line interpolation path x_t = (1 - t) x_0 + t x_1.
         # x0 shape: (batch_size, channels, height, width)
         # x1 shape: same as x0
         # t shape: (batch_size, 1, 1, 1)
         # return shape: same as x0
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement sample_xt in q2_flow_matching.py.")
-        # STUDENT TODO END
+        x_t = (1 - t) * x0 + t * x1
         return x_t
 
     def compute_conditional_velocity(self, x0: torch.Tensor, x1: torch.Tensor) -> torch.Tensor:
-        # STUDENT TODO START
         # Conditional velocity for the straight-line path.
         # x0 shape: (batch_size, channels, height, width)
         # x1 shape: same as x0
         # return shape: same as x0
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement compute_conditional_velocity in q2_flow_matching.py.")
-        # STUDENT TODO END
+        u_t = x1 - x0
         return u_t
 
     def loss(
@@ -61,30 +51,29 @@ class FlowMatching:
         if noise is None:
             noise = torch.randn_like(x0)
 
-        # STUDENT TODO START
         # Flow Matching training loss.
         # x0 shape: (batch_size, channels, height, width)
         # noise shape: same as x0
         # return: scalar loss tensor
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement loss in q2_flow_matching.py.")
-        # STUDENT TODO END
+        u_t = self.compute_conditional_velocity(x0, noise)
+        x_t = self.sample_xt(x0, noise, t)
+        loss = ((self.velocity_model(x_t, t) - u_t) ** 2).mean(dim).mean()
         return loss
 
     def euler_step(self, x_t: torch.Tensor, t: float, dt: float) -> torch.Tensor:
-        # STUDENT TODO START
         # One Euler ODE step.
         # x_t shape: (batch_size, channels, height, width)
         # t: current scalar time
         # dt: scalar step size
         # return shape: same as x_t
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement euler_step in q2_flow_matching.py.")
-        # STUDENT TODO END
+        t_tensor = torch.full(
+            size=(x_t.shape[0],1, 1, 1),
+            fill_value=t,
+            device=x_t.device,
+            dtype=x_t.dtype,
+        )
+        x_next = x_t + dt * self.velocity_model(x_t, t_tensor)
+
         return x_next
 
     def euler_sample(self, noise: torch.Tensor, n_steps: int) -> torch.Tensor:
@@ -96,17 +85,19 @@ class FlowMatching:
         return x_t
 
     def midpoint_step(self, x_t: torch.Tensor, t: float, dt: float) -> torch.Tensor:
-        # STUDENT TODO START
         # One midpoint ODE step.
         # x_t shape: (batch_size, channels, height, width)
         # t: current scalar time
         # dt: scalar step size
         # return shape: same as x_t
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement midpoint_step in q2_flow_matching.py.")
-        # STUDENT TODO END
+        t_tensor = torch.full(
+            size=(x_t.shape[0], 1, 1, 1),
+            fill_value=t,
+            device=x_t.device,
+            dtype=x_t.dtype,
+        )
+        x_m = x_t + (dt / 2) * self.velocity_model(x_t, t_tensor)
+        x_next = x_t + dt * self.velocity_model(x_m, t_tensor + dt / 2)
         return x_next
 
     def midpoint_sample(self, noise: torch.Tensor, n_steps: int) -> torch.Tensor:
