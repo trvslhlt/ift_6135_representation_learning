@@ -11,27 +11,22 @@ from q3_utils import move_batch_to_device, summarize_metrics
 class RewardModel(nn.Module):
     def __init__(self, model_name: str):
         super().__init__()
-        # STUDENT TODO START
         # Reward model on top of a pretrained GPT-2 backbone.
         # model_name: local path or HF model identifier
         # Save the transformer backbone and a scalar reward head on self.
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement RewardModel.__init__ in q3_reward_model.py.")
-        # STUDENT TODO END
+        self.pretrained_model = AutoModel.from_pretrained(model_name)
+        self.reward_head = nn.Linear(self.pretrained_model.config.hidden_size, 1)
 
     def forward(self, input_ids: torch.Tensor, attention_mask: torch.Tensor) -> torch.Tensor:
-        # STUDENT TODO START
         # Score each prompt-response sequence with a scalar reward.
         # input_ids shape: (batch_size, sequence_length)
         # attention_mask shape: (batch_size, sequence_length)
         # return shape: (batch_size,)
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement RewardModel.forward in q3_reward_model.py.")
-        # STUDENT TODO END
+        outputs = self.pretrained_model(input_ids=input_ids, attention_mask=attention_mask)
+        hidden_states = outputs.last_hidden_state # (batch_size, seq_len, hidden_size)
+        last_token_idx = attention_mask.sum(dim=1) - 1 # (batch_size,)
+        last_hidden = hidden_states[torch.arange(hidden_states.shape[0]), last_token_idx] # (batch_size, hidden_size)
+        rewards = self.reward_head(last_hidden).squeeze(-1) # (batch_size,)
         return rewards
 
 
@@ -39,16 +34,11 @@ def compute_preference_loss(
     rewards_chosen: torch.Tensor,
     rewards_rejected: torch.Tensor,
 ) -> torch.Tensor:
-    # STUDENT TODO START
     # Bradley-Terry preference loss.
     # rewards_chosen shape: (batch_size,)
     # rewards_rejected shape: (batch_size,)
     # return: scalar loss tensor
-    # ==========================
-    # TODO: Write your code here
-    # ==========================
-    raise NotImplementedError("Implement compute_preference_loss in q3_reward_model.py.")
-    # STUDENT TODO END
+    loss = -F.logsigmoid(rewards_chosen - rewards_rejected).mean()
     return loss
 
 
@@ -56,16 +46,11 @@ def compute_reward_accuracy(
     rewards_chosen: torch.Tensor,
     rewards_rejected: torch.Tensor,
 ) -> torch.Tensor:
-    # STUDENT TODO START
     # Preference accuracy.
     # rewards_chosen shape: (batch_size,)
     # rewards_rejected shape: (batch_size,)
     # return: scalar accuracy tensor
-    # ==========================
-    # TODO: Write your code here
-    # ==========================
-    raise NotImplementedError("Implement compute_reward_accuracy in q3_reward_model.py.")
-    # STUDENT TODO END
+    accuracy = (rewards_chosen > rewards_rejected).float().mean()
     return accuracy
 
 
@@ -90,15 +75,13 @@ class RewardModelTrainer:
 
     def train_step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, torch.Tensor]:
         batch = move_batch_to_device(batch, self.device)
-        # STUDENT TODO START
         # One reward-model forward pass on a batch of chosen/rejected sequences.
         # batch contains chosen/rejected input ids and attention masks.
         # return keys: `loss` and `accuracy`
-        # ==========================
-        # TODO: Write your code here
-        # ==========================
-        raise NotImplementedError("Implement RewardModelTrainer.train_step in q3_reward_model.py.")
-        # STUDENT TODO END
+        rewards_chosen = self.model(batch["chosen_input_ids"], batch["chosen_attention_mask"])
+        rewards_rejected = self.model(batch["rejected_input_ids"], batch["rejected_attention_mask"])
+        loss = compute_preference_loss(rewards_chosen, rewards_rejected)
+        accuracy = compute_preference_loss(rewards_chosen, rewards_rejected)
         return {"loss": loss, "accuracy": accuracy}
 
     def optimizer_step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, float]:
