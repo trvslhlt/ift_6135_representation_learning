@@ -53,7 +53,7 @@ def compute_dpo_loss(
     #   accuracy: scalar tensor
     a = (policy_chosen_logps - ref_chosen_logps) - (policy_rejected_logps - ref_rejected_logps)
     loss = -F.logsigmoid(beta * a).mean()
-    reward_margin = beta * a
+    reward_margin = a
     accuracy = (reward_margin > 0).float().mean()
     return loss, reward_margin, accuracy
 
@@ -82,7 +82,7 @@ class DPOTrainer:
         self.optimizer = optimizer
         self.beta = beta
         self.device = torch.device(device) if device is not None else self._infer_device(policy_model)
-        
+
         self.policy_model.to(self.device)
         self.reference_model.to(self.device)
         self.reference_model.eval()
