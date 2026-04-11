@@ -101,5 +101,5 @@ class DenoiseDiffusion:
         # noise shape: same as x0
         # return: scalar loss tensor
         xt = self.q_sample(x0, t, eps=noise)
-        loss = ((noise - self.eps_model(xt, t)) **2).mean(dim=dim).mean() # mean image losses -> mean batch loss
+        loss = ((noise - self.eps_model(xt, t)) **2).sum(dim=dim).mean() # "per-example squared L2 norm" -> mean over batch
         return loss

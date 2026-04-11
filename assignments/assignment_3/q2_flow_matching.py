@@ -57,7 +57,7 @@ class FlowMatching:
         # return: scalar loss tensor
         u_t = self.compute_conditional_velocity(x0, noise)
         x_t = self.sample_xt(x0, noise, t)
-        loss = ((self.predict_velocity(x_t, t) - u_t) ** 2).mean(dim).mean()
+        loss = ((self.predict_velocity(x_t, t) - u_t) ** 2).sum(dim=dim).mean()
         return loss
 
     def euler_step(self, x_t: torch.Tensor, t: float, dt: float) -> torch.Tensor:
