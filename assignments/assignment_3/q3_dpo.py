@@ -51,9 +51,8 @@ def compute_dpo_loss(
     #   loss: scalar tensor
     #   reward_margin: (batch_size,)
     #   accuracy: scalar tensor
-    a = (policy_chosen_logps - ref_chosen_logps) - (policy_rejected_logps - ref_rejected_logps)
-    loss = -F.logsigmoid(beta * a).mean()
-    reward_margin = a
+    reward_margin = (policy_chosen_logps - ref_chosen_logps) - (policy_rejected_logps - ref_rejected_logps)
+    loss = -F.logsigmoid(beta * reward_margin).mean()
     accuracy = (reward_margin > 0).float().mean()
     return loss, reward_margin, accuracy
 
