@@ -85,7 +85,6 @@ def best_of_n_sample(
             attention_mask=attention_mask,
         ).detach().cpu()
 
-    # STUDENT TODO START
     # Best-of-N response selection.
     # rewards shape: (n,)
     # response_candidates contains the generated response tokens only.
@@ -93,9 +92,6 @@ def best_of_n_sample(
     #   best_text: selected response as a string
     #   best_reward: scalar float
     #   rewards: all reward scores
-    # ==========================
-    # TODO: Write your code here
-    # ==========================
-    raise NotImplementedError("Implement best_of_n_sample in q3_bon.py.")
-    # STUDENT TODO END
+    best_response, best_reward = select_best_of_n(response_candidates, rewards)
+    best_text = tokenizer.decode(best_response, skip_special_tokens=True)
     return best_text, float(best_reward.item()), rewards
