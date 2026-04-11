@@ -81,7 +81,7 @@ class RewardModelTrainer:
         rewards_chosen = self.model(batch["chosen_input_ids"], batch["chosen_attention_mask"])
         rewards_rejected = self.model(batch["rejected_input_ids"], batch["rejected_attention_mask"])
         loss = compute_preference_loss(rewards_chosen, rewards_rejected)
-        accuracy = compute_preference_loss(rewards_chosen, rewards_rejected)
+        accuracy = compute_reward_accuracy(rewards_chosen, rewards_rejected)
         return {"loss": loss, "accuracy": accuracy}
 
     def optimizer_step(self, batch: Dict[str, torch.Tensor]) -> Dict[str, float]:
